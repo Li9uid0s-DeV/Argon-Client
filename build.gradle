@@ -90,3 +90,7 @@ teavm.js {
     sourceMap = true
     debugInformation = false
 }
+
+tasks.register('assembleDebug') {
+    dependsOn 'classes'
+}
