@@ -76,7 +76,15 @@ public class ItemRenderer
                 GlStateManager.depthMask(false);
             }
 
-            this.itemRenderer.renderItem(heldStack, entitylivingbaseIn, transform, leftHanded);
+            if (item instanceof net.minecraft.argon.guns.ItemArgonGun)
+            {
+                float spinAngle = (entitylivingbaseIn == this.mc.player) ? net.minecraft.argon.guns.GunClientState.getMinigunSpinAngle(0.0F) : 0.0F;
+                net.minecraft.argon.guns.GunModelRenderer.renderThirdPerson(heldStack, leftHanded, spinAngle);
+            }
+            else
+            {
+                this.itemRenderer.renderItem(heldStack, entitylivingbaseIn, transform, leftHanded);
+            }
 
             if (flag)
             {
@@ -396,6 +404,10 @@ public class ItemRenderer
                     this.renderMapFirstPersonSide(p_187457_7_, enumhandside, p_187457_5_, p_187457_6_);
                 }
             }
+            else if (p_187457_6_.getItem() instanceof net.minecraft.argon.guns.ItemArgonGun)
+            {
+                net.minecraft.argon.guns.GunModelRenderer.renderFirstPerson(p_187457_6_, enumhandside, p_187457_2_);
+            }
             else
             {
                 boolean flag1 = enumhandside == EnumHandSide.RIGHT;
@@ -658,7 +670,12 @@ public class ItemRenderer
             }
             else
             {
-                this.equippedProgressMainHand += MathHelper.clamp((Objects.equals(this.itemStackMainHand, itemstack) ? f * f * f : 0.0F) - this.equippedProgressMainHand, -0.4F, 0.4F);
+                boolean sameMainGun = !this.itemStackMainHand.isEmpty() && !itemstack.isEmpty() && this.itemStackMainHand.getItem() instanceof net.minecraft.argon.guns.ItemArgonGun && this.itemStackMainHand.getItem() == itemstack.getItem();
+                if (sameMainGun)
+                {
+                    this.itemStackMainHand = itemstack;
+                }
+                this.equippedProgressMainHand += MathHelper.clamp((sameMainGun || Objects.equals(this.itemStackMainHand, itemstack) ? f * f * f : 0.0F) - this.equippedProgressMainHand, -0.4F, 0.4F);
                 this.equippedProgressOffHand += MathHelper.clamp((float)(Objects.equals(this.itemStackOffHand, itemstack1) ? 1 : 0) - this.equippedProgressOffHand, -0.4F, 0.4F);
             }
         }

@@ -86,6 +86,9 @@ public class TileEntityRendererDispatcher
         this.renderers.put(TileEntityShulkerBox.class, new TileEntityShulkerBoxRenderer(new ModelShulker()));
         this.renderers.put(TileEntityBed.class, new TileEntityBedRenderer());
         this.renderers.put(net.minecraft.argon.create.TileEntityCreateBase.class, new net.minecraft.argon.create.TileEntityCreateRenderer());
+        net.minecraft.argon.guns.TileEntityGunRenderer gunTesr = new net.minecraft.argon.guns.TileEntityGunRenderer();
+        this.renderers.put(net.minecraft.argon.guns.TileEntityGunWorkbench.class, gunTesr);
+        this.renderers.put(net.minecraft.argon.guns.TileEntityAutoTurret.class, gunTesr);
 
         for (TileEntitySpecialRenderer<?> tileentityspecialrenderer : this.renderers.values())
         {

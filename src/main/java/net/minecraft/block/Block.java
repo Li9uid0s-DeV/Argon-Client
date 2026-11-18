@@ -1226,6 +1226,8 @@ public class Block
         registerBlock(253, "weather_radar", new BlockWeatherRadar());
         registerBlock(255, "structure_block", (new BlockStructure()).setBlockUnbreakable().setResistance(6000000.0F).setUnlocalizedName("structureBlock"));
         net.minecraft.argon.create.CreateBlocks.registerBlocks();
+        net.minecraft.argon.guns.GunBlocks.registerBlocks();
+        net.minecraft.argon.tnt.TntBlocks.registerBlocks();
         REGISTRY.validateKey();
 
         for (Block block15 : REGISTRY)

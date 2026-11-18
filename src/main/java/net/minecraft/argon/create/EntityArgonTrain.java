@@ -3,9 +3,11 @@ package net.minecraft.argon.create;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -134,6 +136,40 @@ public class EntityArgonTrain extends Entity
             this.prevRotationYaw = yaw;
             this.seedInitialPath(x, y, z, yaw);
         }
+    }
+
+    public void copyTrainStateForPortal(EntityArgonTrain src, double destX, double destY, double destZ, float destYaw)
+    {
+        this.carriages.clear();
+        this.trainSpeed = src.trainSpeed;
+        this.autopilot = src.autopilot;
+        this.stationWaitTimer = src.stationWaitTimer;
+
+        if (src.schedule != null)
+        {
+            this.schedule = TrainScheduleData.readFromNBT(src.schedule.writeToNBT());
+        }
+
+        this.setLocationAndAngles(destX, destY, destZ, destYaw, 0.0F);
+        double rad = Math.toRadians((double)destYaw);
+        double backX = Math.sin(rad);
+        double backZ = -Math.cos(rad);
+        double accumBack = 0.0D;
+
+        for (int i = 0; i < src.carriages.size(); ++i)
+        {
+            Carriage sc = src.carriages.get(i);
+            if (i > 0)
+            {
+                accumBack += sc.carSpacing;
+            }
+            ContraptionStructure stCopy = ContraptionStructure.readFromNBT(sc.structure.writeToNBT());
+            double cx = destX + backX * accumBack;
+            double cz = destZ + backZ * accumBack;
+            this.carriages.add(new Carriage(stCopy, cx, destY, cz, destYaw, sc.carSpacing));
+        }
+
+        this.seedInitialPath(destX, destY, destZ, destYaw);
     }
 
     private void seedInitialPath(double leadX, double leadY, double leadZ, float yaw)
@@ -301,6 +337,25 @@ public class EntityArgonTrain extends Entity
                 c.y = sample[1];
                 c.z = sample[2];
                 c.yaw = (float)sample[3];
+            }
+        }
+
+        if (!this.world.isRemote && this.timeUntilPortal == 0 && !this.isDead)
+        {
+            BlockPos nosePos = new BlockPos(this.posX, this.posY + 1.0D, this.posZ);
+
+            if (this.world.getBlockState(nosePos).getBlock() == Blocks.PORTAL)
+            {
+                ArgonBetterPortals.teleportTrainThroughPortal(this, nosePos);
+            }
+            else
+            {
+                BlockPos feetPos = new BlockPos(this.posX, this.posY + 0.3D, this.posZ);
+
+                if (this.world.getBlockState(feetPos).getBlock() == Blocks.PORTAL)
+                {
+                    ArgonBetterPortals.teleportTrainThroughPortal(this, feetPos);
+                }
             }
         }
     }

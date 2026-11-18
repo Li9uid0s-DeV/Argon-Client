@@ -354,5 +354,6 @@ public abstract class TileEntity
         register("shulker_box", TileEntityShulkerBox.class);
         register("bed", TileEntityBed.class);
         net.minecraft.argon.create.CreateTileEntities.registerTileEntities();
+        net.minecraft.argon.guns.GunTileEntities.registerTileEntities();
     }
 }

@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import net.minecraft.advancements.Advancement;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.block.Block;
 import net.minecraft.client.ClientBrandRetriever;
 import net.minecraft.client.Minecraft;
@@ -375,6 +376,18 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
         else if (packetIn.getType() == 61)
         {
             entity = new EntitySnowball(this.clientWorldController, d0, d1, d2);
+        }
+        else if (packetIn.getType() == 96)
+        {
+            net.minecraft.argon.guns.EntityArgonBullet bullet = new net.minecraft.argon.guns.EntityArgonBullet(this.clientWorldController, d0, d1, d2);
+            bullet.setBulletKind(net.minecraft.argon.guns.EntityArgonBullet.BulletKind.byId(packetIn.getData() - 1));
+            entity = bullet;
+        }
+        else if (packetIn.getType() == 97)
+        {
+            net.minecraft.argon.tnt.TntType tntType = net.minecraft.argon.tnt.TntType.byOrdinal(packetIn.getData() - 1);
+            entity = new net.minecraft.argon.tnt.EntityArgonTNTPrimed(this.clientWorldController, d0, d1, d2, (EntityLivingBase)null, tntType);
+            packetIn.setData(0);
         }
         else if (packetIn.getType() == 68)
         {
@@ -1156,13 +1169,18 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
 
         if (packetIn.getDimensionID() != this.gameController.player.dimension)
         {
-            this.doneLoadingTerrain = false;
+            boolean seamless = ArgonBetterPortals.consumeSeamlessTeleport();
+            this.doneLoadingTerrain = seamless;
             Scoreboard scoreboard = this.clientWorldController.getScoreboard();
             this.clientWorldController = new WorldClient(this, new WorldSettings(0L, packetIn.getGameType(), false, this.gameController.world.getWorldInfo().isHardcoreModeEnabled(), packetIn.getWorldType()), packetIn.getDimensionID(), packetIn.getDifficulty(), this.gameController.mcProfiler);
             this.clientWorldController.setWorldScoreboard(scoreboard);
             this.gameController.loadWorld(this.clientWorldController);
             this.gameController.player.dimension = packetIn.getDimensionID();
-            this.gameController.displayGuiScreen(new GuiDownloadTerrain(this));
+
+            if (!seamless)
+            {
+                this.gameController.displayGuiScreen(new GuiDownloadTerrain(this));
+            }
         }
 
         this.gameController.setDimensionAndSpawnPlayer(packetIn.getDimensionID());

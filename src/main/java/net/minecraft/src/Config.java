@@ -2460,5 +2460,10 @@ public class Config
     {
         return gameSettings == null ? 2 : gameSettings.ofWeather2Quality;
     }
+
+    public static boolean isBetterPortals()
+    {
+        return gameSettings == null ? true : gameSettings.ofBetterPortals;
+    }
 }
 

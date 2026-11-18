@@ -107,6 +107,10 @@ public class EntityTracker
         {
             this.track(entityIn, 64, 10, true);
         }
+        else if (entityIn instanceof net.minecraft.argon.guns.EntityArgonBullet)
+        {
+            this.track(entityIn, 64, 5, true);
+        }
         else if (entityIn instanceof EntityLlamaSpit)
         {
             this.track(entityIn, 64, 10, false);
@@ -170,6 +174,10 @@ public class EntityTracker
         else if (entityIn instanceof IAnimals)
         {
             this.track(entityIn, 80, 3, true);
+        }
+        else if (entityIn instanceof net.minecraft.argon.tnt.EntityArgonTNTPrimed)
+        {
+            this.track(entityIn, 160, 10, true);
         }
         else if (entityIn instanceof EntityTNTPrimed)
         {

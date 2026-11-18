@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.advancements.CriteriaTriggers;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockFence;
 import net.minecraft.block.BlockFenceGate;
@@ -454,6 +455,12 @@ public abstract class Entity implements ICommandSender
                             else
                             {
                                 j = -1;
+                            }
+
+                            if (ArgonBetterPortals.isSeamlessActiveForEntity(this))
+                            {
+                                ArgonBetterPortals.markSeamlessTeleportFor(this);
+                                ArgonBetterPortals.captureCurrentWorldSnapshotAround(this.world, this.getPosition());
                             }
 
                             this.changeDimension(j);

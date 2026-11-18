@@ -94,3 +94,7 @@ teavm.js {
 tasks.register('assembleDebug') {
     dependsOn 'classes'
 }
+
+tasks.register('lint') {
+    dependsOn 'compileJava'
+}

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Random;
 import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.material.Material;
@@ -642,6 +643,11 @@ public class EntityRenderer implements IResourceManagerReloadListener
                 this.mc.renderGlobal.displayListEntitiesDirty = true;
             }
 
+            if (useFOVSetting)
+            {
+                f *= net.minecraft.argon.guns.GunClientState.getAdsFovMultiplier(this.mc, partialTicks);
+            }
+
             if (entity instanceof EntityLivingBase && ((EntityLivingBase)entity).getHealth() <= 0.0F)
             {
                 float f1 = (float)((EntityLivingBase)entity).deathTime + partialTicks;
@@ -657,6 +663,11 @@ public class EntityRenderer implements IResourceManagerReloadListener
 
             return Reflector.ForgeHooksClient_getFOVModifier.exists() ? Reflector.callFloat(Reflector.ForgeHooksClient_getFOVModifier, this, entity, iblockstate, partialTicks, f) : f;
         }
+    }
+
+    public float getPortalFOV(float partialTicks)
+    {
+        return this.getFOVModifier(partialTicks, true);
     }
 
     private void hurtCameraEffect(float partialTicks)
@@ -1915,6 +1926,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
 
         GlStateManager.depthMask(true);
         renderglobal.renderWorldBorder(entity, partialTicks);
+        ArgonBetterPortals.renderPortals(this, entity, partialTicks);
 
         if (flag)
         {

@@ -7,6 +7,8 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureUtil;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GLContext;
 
 public class Framebuffer
 {
@@ -21,6 +23,8 @@ public class Framebuffer
     public float[] framebufferColor;
     public int framebufferFilter;
     public float resolutionScale = 1.0F;
+    public boolean useStencil = false;
+    private boolean stencilSupportedActive = false;
 
     public Framebuffer(int width, int height, boolean useDepthIn)
     {
@@ -55,6 +59,16 @@ public class Framebuffer
         return this.resolutionScale;
     }
 
+    public void setUseStencil(boolean useStencilIn)
+    {
+        this.useStencil = useStencilIn;
+    }
+
+    public boolean isStencilActive()
+    {
+        return this.stencilSupportedActive;
+    }
+
     public int getScaledDimension(int dimensionIn)
     {
         return Math.max(1, Math.round((float)dimensionIn * this.resolutionScale));
@@ -80,7 +94,27 @@ public class Framebuffer
             }
 
             this.createFramebuffer(scaledWidth, scaledHeight);
-            this.checkFramebufferComplete();
+
+            try
+            {
+                this.checkFramebufferComplete();
+            }
+            catch (RuntimeException ex)
+            {
+                if (this.useStencil && this.stencilSupportedActive)
+                {
+                    this.useStencil = false;
+                    this.stencilSupportedActive = false;
+                    this.deleteFramebuffer();
+                    this.createFramebuffer(scaledWidth, scaledHeight);
+                    this.checkFramebufferComplete();
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
+
             OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, 0);
         }
     }
@@ -143,8 +177,25 @@ public class Framebuffer
             if (this.useDepth)
             {
                 OpenGlHelper.glBindRenderbuffer(OpenGlHelper.GL_RENDERBUFFER, this.depthBuffer);
-                OpenGlHelper.glRenderbufferStorage(OpenGlHelper.GL_RENDERBUFFER, 33190, this.framebufferTextureWidth, this.framebufferTextureHeight);
-                OpenGlHelper.glFramebufferRenderbuffer(OpenGlHelper.GL_FRAMEBUFFER, OpenGlHelper.GL_DEPTH_ATTACHMENT, OpenGlHelper.GL_RENDERBUFFER, this.depthBuffer);
+                boolean packedStencil = this.useStencil && (GLContext.getCapabilities().OpenGL30 || GLContext.getCapabilities().GL_ARB_framebuffer_object || GLContext.getCapabilities().GL_EXT_packed_depth_stencil);
+
+                if (packedStencil)
+                {
+                    OpenGlHelper.glRenderbufferStorage(OpenGlHelper.GL_RENDERBUFFER, 35056, this.framebufferTextureWidth, this.framebufferTextureHeight);
+                    OpenGlHelper.glFramebufferRenderbuffer(OpenGlHelper.GL_FRAMEBUFFER, 36096, OpenGlHelper.GL_RENDERBUFFER, this.depthBuffer);
+                    OpenGlHelper.glFramebufferRenderbuffer(OpenGlHelper.GL_FRAMEBUFFER, 36128, OpenGlHelper.GL_RENDERBUFFER, this.depthBuffer);
+                    this.stencilSupportedActive = true;
+                }
+                else
+                {
+                    OpenGlHelper.glRenderbufferStorage(OpenGlHelper.GL_RENDERBUFFER, 33190, this.framebufferTextureWidth, this.framebufferTextureHeight);
+                    OpenGlHelper.glFramebufferRenderbuffer(OpenGlHelper.GL_FRAMEBUFFER, OpenGlHelper.GL_DEPTH_ATTACHMENT, OpenGlHelper.GL_RENDERBUFFER, this.depthBuffer);
+                    this.stencilSupportedActive = false;
+                }
+            }
+            else
+            {
+                this.stencilSupportedActive = false;
             }
 
             this.framebufferClear();
@@ -299,6 +350,12 @@ public class Framebuffer
         {
             GlStateManager.clearDepth(1.0D);
             i |= 256;
+        }
+
+        if (this.stencilSupportedActive)
+        {
+            GL11.glClearStencil(0);
+            i |= 1024;
         }
 
         GlStateManager.clear(i);

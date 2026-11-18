@@ -248,7 +248,16 @@ public class GuiIngame extends Gui
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(ICONS);
         GlStateManager.enableBlend();
-        this.renderAttackIndicator(partialTicks, scaledresolution);
+        boolean hideCrosshairForScope = this.mc.gameSettings.thirdPersonView == 0
+            && net.minecraft.argon.guns.GunClientState.getAdsProgress(partialTicks) > 0.85F
+            && !this.mc.player.getHeldItemMainhand().isEmpty()
+            && this.mc.player.getHeldItemMainhand().getItem() instanceof net.minecraft.argon.guns.ItemArgonGun
+            && net.minecraft.argon.guns.GunAttachment.usesFullScopeOverlay(((net.minecraft.argon.guns.ItemArgonGun)this.mc.player.getHeldItemMainhand().getItem()).getGunType(), this.mc.player.getHeldItemMainhand());
+
+        if (!hideCrosshairForScope)
+        {
+            this.renderAttackIndicator(partialTicks, scaledresolution);
+        }
         GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
         this.mc.mcProfiler.startSection("bossHealth");
         this.overlayBoss.renderBossHealth();
@@ -320,6 +329,8 @@ public class GuiIngame extends Gui
         {
             this.renderArgonHud(scaledresolution, fontrenderer);
         }
+
+        net.minecraft.argon.guns.GunClientState.renderGunHud(this.mc, scaledresolution, fontrenderer, partialTicks);
 
         if (this.overlayMessageTime > 0)
         {

@@ -28,7 +28,8 @@ public class GuiArgonSettings extends GuiScreen
         GameSettings.Options.VOICE_CHAT_DISTANCE,
         GameSettings.Options.VOICE_CHAT_VOLUME,
         GameSettings.Options.WEATHER2_QUALITY,
-        GameSettings.Options.RESOLUTION_SCALE
+        GameSettings.Options.RESOLUTION_SCALE,
+        GameSettings.Options.BETTER_PORTALS
     };
     private TooltipManager tooltipManager = new TooltipManager(this);
 

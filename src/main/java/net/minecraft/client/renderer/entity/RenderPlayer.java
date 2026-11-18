@@ -102,7 +102,11 @@ public class RenderPlayer extends RenderLivingBase<AbstractClientPlayer>
             {
                 modelbiped$armpose = ModelBiped.ArmPose.ITEM;
 
-                if (clientPlayer.getItemInUseCount() > 0)
+                if (itemstack.getItem() instanceof net.minecraft.argon.guns.ItemArgonGun)
+                {
+                    modelbiped$armpose = ModelBiped.ArmPose.BOW_AND_ARROW;
+                }
+                else if (clientPlayer.getItemInUseCount() > 0)
                 {
                     EnumAction enumaction = itemstack.getItemUseAction();
 

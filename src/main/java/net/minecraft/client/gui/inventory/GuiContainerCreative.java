@@ -49,6 +49,8 @@ public class GuiContainerCreative extends InventoryEffectRenderer
 
     /** Currently selected creative inventory tab index. */
     private static int selectedTabIndex = CreativeTabs.BUILDING_BLOCKS.getTabIndex();
+    private static int tabPage = 0;
+    private int maxPages = 0;
 
     /** Amount scrolled in Creative mode inventory (0 = top, 1 = bottom) */
     private float currentScroll;
@@ -305,11 +307,39 @@ public class GuiContainerCreative extends InventoryEffectRenderer
             this.setCurrentCreativeTab(CreativeTabs.CREATIVE_TAB_ARRAY[i]);
             this.listener = new CreativeCrafting(this.mc);
             this.mc.player.inventoryContainer.addListener(this.listener);
+            int tabCount = CreativeTabs.CREATIVE_TAB_ARRAY.length;
+
+            if (tabCount > 12)
+            {
+                this.buttonList.add(new GuiButton(101, this.guiLeft, this.guiTop - 50, 20, 20, "<"));
+                this.buttonList.add(new GuiButton(102, this.guiLeft + this.xSize - 20, this.guiTop - 50, 20, 20, ">"));
+                this.maxPages = (int)Math.ceil((double)(tabCount - 12) / 10.0D);
+            }
+            else
+            {
+                this.maxPages = 0;
+                tabPage = 0;
+            }
         }
         else
         {
             this.mc.displayGuiScreen(new GuiInventory(this.mc.player));
         }
+    }
+
+    private boolean isTabVisibleOnCurrentPage(CreativeTabs tab)
+    {
+        if (tab == null)
+        {
+            return false;
+        }
+
+        if (tab == CreativeTabs.SEARCH || tab == CreativeTabs.INVENTORY)
+        {
+            return true;
+        }
+
+        return tab.getTabPage() == tabPage;
     }
 
     /**
@@ -413,7 +443,7 @@ public class GuiContainerCreative extends InventoryEffectRenderer
 
             for (CreativeTabs creativetabs : CreativeTabs.CREATIVE_TAB_ARRAY)
             {
-                if (this.isMouseOverTab(creativetabs, i, j))
+                if (this.isTabVisibleOnCurrentPage(creativetabs) && this.isMouseOverTab(creativetabs, i, j))
                 {
                     return;
                 }
@@ -435,7 +465,7 @@ public class GuiContainerCreative extends InventoryEffectRenderer
 
             for (CreativeTabs creativetabs : CreativeTabs.CREATIVE_TAB_ARRAY)
             {
-                if (this.isMouseOverTab(creativetabs, i, j))
+                if (this.isTabVisibleOnCurrentPage(creativetabs) && this.isMouseOverTab(creativetabs, i, j))
                 {
                     this.setCurrentCreativeTab(creativetabs);
                     return;
@@ -649,10 +679,17 @@ public class GuiContainerCreative extends InventoryEffectRenderer
 
         for (CreativeTabs creativetabs : CreativeTabs.CREATIVE_TAB_ARRAY)
         {
-            if (this.renderCreativeInventoryHoveringText(creativetabs, mouseX, mouseY))
+            if (this.isTabVisibleOnCurrentPage(creativetabs) && this.renderCreativeInventoryHoveringText(creativetabs, mouseX, mouseY))
             {
                 break;
             }
+        }
+
+        if (this.maxPages > 0)
+        {
+            String pageStr = String.format("%d / %d", new Object[] {Integer.valueOf(tabPage + 1), Integer.valueOf(this.maxPages + 1)});
+            GlStateManager.disableLighting();
+            this.fontRenderer.drawStringWithShadow(pageStr, this.guiLeft + (this.xSize / 2) - (this.fontRenderer.getStringWidth(pageStr) / 2), this.guiTop - 44, 0xFFFFFF);
         }
 
         if (this.destroyItemSlot != null && selectedTabIndex == CreativeTabs.INVENTORY.getTabIndex() && this.isPointInRegion(this.destroyItemSlot.xPos, this.destroyItemSlot.yPos, 16, 16, mouseX, mouseY))
@@ -729,7 +766,7 @@ public class GuiContainerCreative extends InventoryEffectRenderer
         {
             this.mc.getTextureManager().bindTexture(CREATIVE_INVENTORY_TABS);
 
-            if (creativetabs1.getTabIndex() != selectedTabIndex)
+            if (this.isTabVisibleOnCurrentPage(creativetabs1) && creativetabs1.getTabIndex() != selectedTabIndex)
             {
                 this.drawTab(creativetabs1);
             }
@@ -749,7 +786,10 @@ public class GuiContainerCreative extends InventoryEffectRenderer
             this.drawTexturedModalRect(i, j + (int)((float)(k - j - 17) * this.currentScroll), 232 + (this.needsScrollBars() ? 0 : 12), 0, 12, 15);
         }
 
-        this.drawTab(creativetabs);
+        if (this.isTabVisibleOnCurrentPage(creativetabs))
+        {
+            this.drawTab(creativetabs);
+        }
 
         if (creativetabs == CreativeTabs.INVENTORY)
         {
@@ -889,6 +929,14 @@ public class GuiContainerCreative extends InventoryEffectRenderer
         if (button.id == 1)
         {
             this.mc.displayGuiScreen(new GuiStats(this, this.mc.player.getStatFileWriter()));
+        }
+        else if (button.id == 101)
+        {
+            tabPage = Math.max(tabPage - 1, 0);
+        }
+        else if (button.id == 102)
+        {
+            tabPage = Math.min(tabPage + 1, this.maxPages);
         }
     }
 

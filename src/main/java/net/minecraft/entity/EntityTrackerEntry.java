@@ -571,6 +571,11 @@ public class EntityTrackerEntry
         {
             return new SPacketSpawnObject(this.trackedEntity, 61);
         }
+        else if (this.trackedEntity instanceof net.minecraft.argon.guns.EntityArgonBullet)
+        {
+            net.minecraft.argon.guns.EntityArgonBullet bullet = (net.minecraft.argon.guns.EntityArgonBullet)this.trackedEntity;
+            return new SPacketSpawnObject(this.trackedEntity, 96, bullet.getBulletKind().ordinal() + 1);
+        }
         else if (this.trackedEntity instanceof EntityLlamaSpit)
         {
             return new SPacketSpawnObject(this.trackedEntity, 68);
@@ -643,6 +648,11 @@ public class EntityTrackerEntry
         else if (this.trackedEntity instanceof EntityEvokerFangs)
         {
             return new SPacketSpawnObject(this.trackedEntity, 79);
+        }
+        else if (this.trackedEntity instanceof net.minecraft.argon.tnt.EntityArgonTNTPrimed)
+        {
+            net.minecraft.argon.tnt.EntityArgonTNTPrimed argonTnt = (net.minecraft.argon.tnt.EntityArgonTNTPrimed)this.trackedEntity;
+            return new SPacketSpawnObject(this.trackedEntity, 97, argonTnt.getTntType().ordinal() + 1);
         }
         else if (this.trackedEntity instanceof EntityTNTPrimed)
         {

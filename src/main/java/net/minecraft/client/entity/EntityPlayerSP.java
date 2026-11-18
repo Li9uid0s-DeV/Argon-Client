@@ -4,6 +4,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.src.Config;
 import net.minecraft.client.audio.ElytraSound;
 import net.minecraft.client.audio.MovingSoundMinecartRiding;
 import net.minecraft.client.audio.PositionedSoundRecord;
@@ -1033,24 +1034,33 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
         if (this.inPortal)
         {
-            if (this.mc.currentScreen != null && !this.mc.currentScreen.doesGuiPauseGame())
+            if (Config.isBetterPortals() && (this.dimension == 0 || this.dimension == -1))
             {
-                this.mc.displayGuiScreen((GuiScreen)null);
+                this.timeInPortal = 0.0F;
+                this.prevTimeInPortal = 0.0F;
+                this.inPortal = false;
             }
-
-            if (this.timeInPortal == 0.0F)
+            else
             {
-                this.mc.getSoundHandler().playSound(PositionedSoundRecord.getMasterRecord(SoundEvents.BLOCK_PORTAL_TRIGGER, this.rand.nextFloat() * 0.4F + 0.8F));
+                if (this.mc.currentScreen != null && !this.mc.currentScreen.doesGuiPauseGame())
+                {
+                    this.mc.displayGuiScreen((GuiScreen)null);
+                }
+
+                if (this.timeInPortal == 0.0F)
+                {
+                    this.mc.getSoundHandler().playSound(PositionedSoundRecord.getMasterRecord(SoundEvents.BLOCK_PORTAL_TRIGGER, this.rand.nextFloat() * 0.4F + 0.8F));
+                }
+
+                this.timeInPortal += 0.0125F;
+
+                if (this.timeInPortal >= 1.0F)
+                {
+                    this.timeInPortal = 1.0F;
+                }
+
+                this.inPortal = false;
             }
-
-            this.timeInPortal += 0.0125F;
-
-            if (this.timeInPortal >= 1.0F)
-            {
-                this.timeInPortal = 1.0F;
-            }
-
-            this.inPortal = false;
         }
         else if (this.isPotionActive(MobEffects.NAUSEA) && this.getActivePotionEffect(MobEffects.NAUSEA).getDuration() > 60)
         {

@@ -1,0 +1,12 @@
+{
+  "name": "argon-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Argon Client 1.12.2 (Eaglercraft + OptiFine) Gradle workspace and development preview hub",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "start": "node dev-server.mjs",
+    "build": "./gradlew compileJava --console=plain",
+    "lint": "node --check dev-server.mjs && node --check dev-server-core.mjs && ./gradlew compileJava --console=plain"
+  }
+}

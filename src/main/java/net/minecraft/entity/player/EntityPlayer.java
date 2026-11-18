@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockHorizontal;
@@ -423,6 +424,11 @@ public abstract class EntityPlayer extends EntityLivingBase
      */
     public int getMaxInPortalTime()
     {
+        if (ArgonBetterPortals.isSeamlessActiveForEntity(this))
+        {
+            return 0;
+        }
+
         return this.capabilities.disableDamage ? 1 : 80;
     }
 
@@ -441,6 +447,11 @@ public abstract class EntityPlayer extends EntityLivingBase
      */
     public int getPortalCooldown()
     {
+        if (ArgonBetterPortals.isSeamlessActiveForEntity(this))
+        {
+            return 30;
+        }
+
         return 10;
     }
 

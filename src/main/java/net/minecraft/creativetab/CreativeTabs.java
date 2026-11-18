@@ -13,7 +13,7 @@ import net.minecraft.util.NonNullList;
 
 public abstract class CreativeTabs
 {
-    public static final CreativeTabs[] CREATIVE_TAB_ARRAY = new CreativeTabs[12];
+    public static CreativeTabs[] CREATIVE_TAB_ARRAY = new CreativeTabs[12];
     public static final CreativeTabs BUILDING_BLOCKS = new CreativeTabs(0, "buildingBlocks")
     {
         public ItemStack getTabIconItem()
@@ -121,10 +121,32 @@ public abstract class CreativeTabs
 
     public CreativeTabs(int index, String label)
     {
+        if (index >= CREATIVE_TAB_ARRAY.length)
+        {
+            CreativeTabs[] expanded = new CreativeTabs[index + 1];
+            System.arraycopy(CREATIVE_TAB_ARRAY, 0, expanded, 0, CREATIVE_TAB_ARRAY.length);
+            CREATIVE_TAB_ARRAY = expanded;
+        }
+
         this.tabIndex = index;
         this.tabLabel = label;
         this.iconItemStack = ItemStack.EMPTY;
         CREATIVE_TAB_ARRAY[index] = this;
+    }
+
+    public static int getNextID()
+    {
+        return CREATIVE_TAB_ARRAY.length;
+    }
+
+    public int getTabPage()
+    {
+        if (this.tabIndex > 11)
+        {
+            return ((this.tabIndex - 12) / 10) + 1;
+        }
+
+        return 0;
     }
 
     public int getTabIndex()
@@ -191,24 +213,34 @@ public abstract class CreativeTabs
     }
 
     /**
-     * returns index % 6
+     * returns index % 6 (or page-relative column 0..4 for custom tabs >= 12)
      */
     public int getTabColumn()
     {
+        if (this.tabIndex > 11)
+        {
+            return ((this.tabIndex - 12) % 10) % 5;
+        }
+
         return this.tabIndex % 6;
     }
 
     /**
-     * returns tabIndex < 6
+     * returns tabIndex < 6 (or top row for custom tabs >= 12)
      */
     public boolean isTabInFirstRow()
     {
+        if (this.tabIndex > 11)
+        {
+            return ((this.tabIndex - 12) % 10) < 5;
+        }
+
         return this.tabIndex < 6;
     }
 
     public boolean isAlignedRight()
     {
-        return this.getTabColumn() == 5;
+        return this.tabIndex == 5 || this.tabIndex == 11 || (this.tabIndex <= 11 && this.getTabColumn() == 5);
     }
 
     /**

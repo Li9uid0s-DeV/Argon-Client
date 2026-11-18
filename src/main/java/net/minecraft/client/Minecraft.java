@@ -543,13 +543,15 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         this.createDisplay();
         OpenGlHelper.initializeTextures();
         this.framebufferMc = new Framebuffer(this.displayWidth, this.displayHeight, true);
+        this.framebufferMc.setUseStencil(true);
         this.framebufferMc.setFramebufferColor(0.0F, 0.0F, 0.0F, 0.0F);
 
         if (this.gameSettings != null && Math.abs(this.gameSettings.ofResolutionScale - 1.0F) > 0.001F)
         {
             this.framebufferMc.setResolutionScale(this.gameSettings.ofResolutionScale);
-            this.framebufferMc.createBindFramebuffer(this.displayWidth, this.displayHeight);
         }
+
+        this.framebufferMc.createBindFramebuffer(this.displayWidth, this.displayHeight);
         this.registerMetadataSerializers();
         this.mcResourcePackRepository = new ResourcePackRepository(this.fileResourcepacks, new File(this.mcDataDir, "server-resource-packs"), this.mcDefaultResourcePack, this.metadataSerializer_, this.gameSettings);
         this.mcResourceManager = new SimpleReloadableResourceManager(this.metadataSerializer_);
@@ -705,7 +707,7 @@ public class Minecraft implements IThreadListener, ISnooperInfo
 
         try
         {
-            Display.create((new PixelFormat()).withDepthBits(24));
+            Display.create((new PixelFormat()).withDepthBits(24).withStencilBits(8));
         }
         catch (LWJGLException lwjglexception)
         {
@@ -1584,6 +1586,12 @@ public class Minecraft implements IThreadListener, ISnooperInfo
 
     private void sendClickBlockToController(boolean leftClick)
     {
+        if (net.minecraft.argon.guns.GunClientState.isHoldingGun(this.player))
+        {
+            this.playerController.resetBlockRemoving();
+            return;
+        }
+
         if (!leftClick)
         {
             this.leftClickCounter = 0;
@@ -1610,6 +1618,11 @@ public class Minecraft implements IThreadListener, ISnooperInfo
 
     private void clickMouse()
     {
+        if (net.minecraft.argon.guns.GunClientState.handleLeftClickPress(this))
+        {
+            return;
+        }
+
         if (this.leftClickCounter <= 0)
         {
             if (this.objectMouseOver == null)
@@ -1955,6 +1968,8 @@ public class Minecraft implements IThreadListener, ISnooperInfo
 
             if (!this.isGamePaused)
             {
+                net.minecraft.argon.guns.GunClientState.onClientTick(this);
+                net.minecraft.argon.tnt.ArgonExplosionScheduler.onClientTick(this);
                 this.entityRenderer.updateRenderer();
             }
 

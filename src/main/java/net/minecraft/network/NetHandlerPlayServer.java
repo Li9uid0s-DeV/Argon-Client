@@ -1521,6 +1521,12 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer, ITickable
         PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
         String s = packetIn.getChannelName();
 
+        if (net.minecraft.argon.guns.GunNetworkHandler.CHANNEL.equals(s))
+        {
+            net.minecraft.argon.guns.GunNetworkHandler.handleServerPayload(this.player, packetIn.getBufferData());
+            return;
+        }
+
         if ("MC|BEdit".equals(s))
         {
             PacketBuffer packetbuffer = packetIn.getBufferData();

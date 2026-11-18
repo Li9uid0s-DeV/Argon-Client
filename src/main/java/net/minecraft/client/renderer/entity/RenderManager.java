@@ -240,6 +240,9 @@ public class RenderManager
         this.entityRenderMap.put(EntityLightningBolt.class, new RenderLightningBolt(this));
         this.entityRenderMap.put(EntityWeatherStorm.class, new RenderWeatherStorm(this));
         this.entityRenderMap.put(net.minecraft.argon.create.EntityArgonTrain.class, new net.minecraft.argon.create.RenderArgonTrain(this));
+        this.entityRenderMap.put(net.minecraft.argon.guns.EntityArgonBullet.class, new net.minecraft.argon.guns.RenderArgonBullet(this));
+        this.entityRenderMap.put(net.minecraft.argon.guns.EntityArgonSoldier.class, new net.minecraft.argon.guns.RenderArgonSoldier(this));
+        this.entityRenderMap.put(net.minecraft.argon.tnt.EntityArgonTNTPrimed.class, new net.minecraft.argon.tnt.RenderArgonTNTPrimed(this));
         this.playerRenderer = new RenderPlayer(this);
         this.skinMap.put("default", this.playerRenderer);
         this.skinMap.put("slim", new RenderPlayer(this, true));

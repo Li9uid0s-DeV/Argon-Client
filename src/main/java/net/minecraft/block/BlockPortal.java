@@ -3,6 +3,8 @@ package net.minecraft.block;
 import com.google.common.cache.LoadingCache;
 import java.util.Random;
 import javax.annotation.Nullable;
+import net.minecraft.argon.create.EntityArgonTrain;
+import net.minecraft.argon.portals.ArgonBetterPortals;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyEnum;
@@ -18,6 +20,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemMonsterPlacer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.src.Config;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumParticleTypes;
@@ -163,6 +166,11 @@ public class BlockPortal extends BlockBreakable
 
     public boolean shouldSideBeRendered(IBlockState blockState, IBlockAccess blockAccess, BlockPos pos, EnumFacing side)
     {
+        if (Config.isBetterPortals() && ArgonBetterPortals.isRenderingMainWorld())
+        {
+            return false;
+        }
+
         pos = pos.offset(side);
         EnumFacing.Axis enumfacing$axis = null;
 
@@ -229,6 +237,16 @@ public class BlockPortal extends BlockBreakable
      */
     public void onEntityCollidedWithBlock(World worldIn, BlockPos pos, IBlockState state, Entity entityIn)
     {
+        if (entityIn instanceof EntityArgonTrain)
+        {
+            if (!worldIn.isRemote)
+            {
+                ArgonBetterPortals.teleportTrainThroughPortal((EntityArgonTrain)entityIn, pos);
+            }
+
+            return;
+        }
+
         if (!entityIn.isRiding() && !entityIn.isBeingRidden() && entityIn.isNonBoss())
         {
             entityIn.setPortal(pos);

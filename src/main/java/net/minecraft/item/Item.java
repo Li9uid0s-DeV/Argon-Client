@@ -1091,6 +1091,8 @@ public class Item
         registerItem(2266, "record_11", (new ItemRecord("11", SoundEvents.RECORD_11)).setUnlocalizedName("record"));
         registerItem(2267, "record_wait", (new ItemRecord("wait", SoundEvents.RECORD_WAIT)).setUnlocalizedName("record"));
         net.minecraft.argon.create.CreateItems.registerItemsAndBlocks();
+        net.minecraft.argon.guns.GunItems.registerItemsAndBlocks();
+        net.minecraft.argon.tnt.TntItems.registerItemsAndBlocks();
     }
 
     /**
@@ -1104,7 +1106,7 @@ public class Item
     /**
      * Register the given Item as the ItemBlock for the given Block.
      */
-    protected static void registerItemBlock(Block blockIn, Item itemIn)
+    public static void registerItemBlock(Block blockIn, Item itemIn)
     {
         registerItem(Block.getIdFromBlock(blockIn), Block.REGISTRY.getNameForObject(blockIn), itemIn);
         BLOCK_TO_ITEM.put(blockIn, itemIn);

@@ -1259,6 +1259,8 @@ public class RenderItem implements IResourceManagerReloadListener
         this.registerBlock(Blocks.STRUCTURE_BLOCK, TileEntityStructure.Mode.CORNER.getModeId(), "structure_block");
         this.registerBlock(Blocks.STRUCTURE_BLOCK, TileEntityStructure.Mode.DATA.getModeId(), "structure_block");
         net.minecraft.argon.create.CreateClientHooks.registerItemModels(this);
+        net.minecraft.argon.guns.GunClientHooks.registerItemModels(this);
+        net.minecraft.argon.tnt.TntClientHooks.registerItemModels(this);
 
         if (Reflector.ModelLoader_onRegisterItems.exists())
         {

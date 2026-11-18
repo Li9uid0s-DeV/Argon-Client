@@ -83,6 +83,18 @@ public class BlockModelShapes
                 return createSprite;
             }
 
+            TextureAtlasSprite gunSprite = net.minecraft.argon.guns.GunClientHooks.getFallbackTexture(this, block);
+            if (gunSprite != null)
+            {
+                return gunSprite;
+            }
+
+            TextureAtlasSprite tntSprite = net.minecraft.argon.tnt.TntClientHooks.getFallbackTexture(this, block);
+            if (tntSprite != null)
+            {
+                return tntSprite;
+            }
+
             if (block == Blocks.WALL_SIGN || block == Blocks.STANDING_SIGN || block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST || block == Blocks.STANDING_BANNER || block == Blocks.WALL_BANNER || block == Blocks.BED)
             {
                 return this.modelManager.getTextureMap().getAtlasSprite("minecraft:blocks/planks_oak");
@@ -406,5 +418,7 @@ public class BlockModelShapes
             }
         });
         net.minecraft.argon.create.CreateClientHooks.registerBlockModels(this);
+        net.minecraft.argon.guns.GunClientHooks.registerBlockModels(this);
+        net.minecraft.argon.tnt.TntClientHooks.registerBlockModels(this);
     }
 }

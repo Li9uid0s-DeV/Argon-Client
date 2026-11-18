@@ -392,6 +392,10 @@ public class EntityList
         register(120, "villager", EntityVillager.class, "Villager");
         register(200, "ender_crystal", EntityEnderCrystal.class, "EnderCrystal");
         register(210, "argon_create_train", net.minecraft.argon.create.EntityArgonTrain.class, "ArgonCreateTrain");
+        register(211, "argon_bullet", net.minecraft.argon.guns.EntityArgonBullet.class, "ArgonBullet");
+        register(212, "argon_soldier", net.minecraft.argon.guns.EntityArgonSoldier.class, "ArgonSoldier");
+        register(213, "argon_tnt_primed", net.minecraft.argon.tnt.EntityArgonTNTPrimed.class, "ArgonTNTPrimed");
+        addSpawnInfo("argon_soldier", 3095343, 3716863);
         addSpawnInfo("bat", 4996656, 986895);
         addSpawnInfo("blaze", 16167425, 16775294);
         addSpawnInfo("cave_spider", 803406, 11013646);

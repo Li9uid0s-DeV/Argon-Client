@@ -232,6 +232,8 @@ public class WorldServer extends World implements IThreadListener
         this.villageSiege.tick();
         this.profiler.endStartSection("portalForcer");
         this.worldTeleporter.removeStalePortalLocations(this.getTotalWorldTime());
+        this.profiler.endStartSection("argonExplosionScheduler");
+        net.minecraft.argon.tnt.ArgonExplosionScheduler.onServerWorldTick(this);
         this.profiler.endSection();
         this.sendQueuedBlockEvents();
     }
