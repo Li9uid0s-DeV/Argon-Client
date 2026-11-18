@@ -2455,4 +2455,10 @@ public class Config
     {
         return gameSettings == null ? 1.0F : gameSettings.ofVoiceChatVolume;
     }
+
+    public static int getWeather2Quality()
+    {
+        return gameSettings == null ? 2 : gameSettings.ofWeather2Quality;
+    }
 }
+

@@ -532,6 +532,10 @@ public abstract class Biome
         registerBiome(165, "mutated_mesa", new BiomeMesa(true, false, (new Biome.BiomeProperties("Mesa (Bryce)")).setBaseBiome("mesa").setTemperature(2.0F).setRainfall(0.0F).setRainDisabled()));
         registerBiome(166, "mutated_mesa_rock", new BiomeMesa(false, true, (new Biome.BiomeProperties("Mesa Plateau F M")).setBaseBiome("mesa_rock").setBaseHeight(0.45F).setHeightVariation(0.3F).setTemperature(2.0F).setRainfall(0.0F).setRainDisabled()));
         registerBiome(167, "mutated_mesa_clear_rock", new BiomeMesa(false, false, (new Biome.BiomeProperties("Mesa Plateau M")).setBaseBiome("mesa_clear_rock").setBaseHeight(0.45F).setHeightVariation(0.3F).setTemperature(2.0F).setRainfall(0.0F).setRainDisabled()));
+        registerBiome(170, "cherry_blossom_grove", new BiomeArgonScenic(BiomeArgonScenic.ScenicType.CHERRY_BLOSSOM, (new Biome.BiomeProperties("Cherry Blossom Grove")).setBaseHeight(0.35F).setHeightVariation(0.25F).setTemperature(0.7F).setRainfall(0.8F).setWaterColor(0x44AAFF)));
+        registerBiome(171, "autumn_maple_forest", new BiomeArgonScenic(BiomeArgonScenic.ScenicType.AUTUMN_MAPLE, (new Biome.BiomeProperties("Autumn Maple Forest")).setBaseHeight(0.3F).setHeightVariation(0.35F).setTemperature(0.55F).setRainfall(0.7F).setWaterColor(0x3B85C4)));
+        registerBiome(172, "alpine_peaks", new BiomeArgonScenic(BiomeArgonScenic.ScenicType.ALPINE_PEAKS, (new Biome.BiomeProperties("Alpine Peaks")).setBaseHeight(2.4F).setHeightVariation(1.35F).setTemperature(0.05F).setRainfall(0.4F).setSnowEnabled()));
+        registerBiome(173, "grand_canyon_valley", new BiomeArgonScenic(BiomeArgonScenic.ScenicType.GRAND_CANYON, (new Biome.BiomeProperties("Grand Canyon Valley")).setBaseHeight(-0.65F).setHeightVariation(0.45F).setTemperature(1.2F).setRainfall(0.1F).setRainDisabled()));
     }
 
     /**

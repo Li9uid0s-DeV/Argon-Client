@@ -24,6 +24,7 @@ import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.crash.ICrashReportDetail;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.effect.EntityWeatherStorm;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Biomes;
@@ -34,6 +35,7 @@ import net.minecraft.pathfinding.PathWorldListener;
 import net.minecraft.profiler.Profiler;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.src.Config;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EntitySelectors;
 import net.minecraft.util.EnumFacing;
@@ -2450,7 +2452,69 @@ public abstract class World implements IBlockAccess
                 }
 
                 this.rainingStrength = MathHelper.clamp(this.rainingStrength, 0.0F, 1.0F);
+                this.updateWeather2LocalizedStorms();
             }
+        }
+    }
+
+    protected void updateWeather2LocalizedStorms()
+    {
+        if (Config.getWeather2Quality() <= 0 || this.playerEntities.isEmpty())
+        {
+            return;
+        }
+
+        if (!this.worldInfo.isRaining() && !this.worldInfo.isThundering())
+        {
+            return;
+        }
+
+        if (this.getTotalWorldTime() % 400L != 0L)
+        {
+            return;
+        }
+
+        int activeStorms = 0;
+
+        for (int i = 0; i < this.weatherEffects.size(); ++i)
+        {
+            Entity effect = this.weatherEffects.get(i);
+
+            if (effect instanceof EntityWeatherStorm && !effect.isDead)
+            {
+                ++activeStorms;
+            }
+        }
+
+        if (activeStorms >= 2)
+        {
+            return;
+        }
+
+        int spawnChance = this.worldInfo.isThundering() ? 2 : 5;
+
+        if (this.rand.nextInt(spawnChance) == 0)
+        {
+            EntityPlayer targetPlayer = this.playerEntities.get(this.rand.nextInt(this.playerEntities.size()));
+            float angle = this.rand.nextFloat() * ((float)Math.PI * 2.0F);
+            double dist = 48.0D + this.rand.nextDouble() * 48.0D;
+            double sx = targetPlayer.posX + (double)MathHelper.cos(angle) * dist;
+            double sz = targetPlayer.posZ + (double)MathHelper.sin(angle) * dist;
+            BlockPos topPos = this.getPrecipitationHeight(new BlockPos(sx, 0.0D, sz));
+            int efScale;
+
+            if (this.worldInfo.isThundering())
+            {
+                int roll = this.rand.nextInt(100);
+                efScale = roll < 25 ? 1 : (roll < 50 ? 2 : (roll < 70 ? 3 : (roll < 84 ? 4 : (roll < 92 ? 5 : (roll < 97 ? 6 : 7)))));
+            }
+            else
+            {
+                efScale = this.rand.nextInt(3);
+            }
+
+            EntityWeatherStorm storm = new EntityWeatherStorm(this, sx, (double)topPos.getY(), sz, efScale);
+            this.addWeatherEffect(storm);
         }
     }
 

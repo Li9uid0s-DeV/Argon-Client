@@ -294,6 +294,7 @@ public class Blocks
     public static final Block BLACK_GLAZED_TERRACOTTA;
     public static final Block CONCRETE;
     public static final Block CONCRETE_POWDER;
+    public static final Block WEATHER_RADAR;
     public static final Block STRUCTURE_BLOCK;
 
     @Nullable
@@ -577,6 +578,7 @@ public class Blocks
             BLACK_GLAZED_TERRACOTTA = getRegisteredBlock("black_glazed_terracotta");
             CONCRETE = getRegisteredBlock("concrete");
             CONCRETE_POWDER = getRegisteredBlock("concrete_powder");
+            WEATHER_RADAR = getRegisteredBlock("weather_radar");
             STRUCTURE_BLOCK = getRegisteredBlock("structure_block");
             CACHE.clear();
         }

@@ -29,6 +29,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.boss.EntityDragon;
 import net.minecraft.entity.boss.EntityWither;
 import net.minecraft.entity.effect.EntityLightningBolt;
+import net.minecraft.entity.effect.EntityWeatherStorm;
 import net.minecraft.entity.item.EntityArmorStand;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.item.EntityEnderCrystal;
@@ -237,6 +238,7 @@ public class RenderManager
         this.entityRenderMap.put(EntityLlama.class, new RenderLlama(this));
         this.entityRenderMap.put(EntityLlamaSpit.class, new RenderLlamaSpit(this));
         this.entityRenderMap.put(EntityLightningBolt.class, new RenderLightningBolt(this));
+        this.entityRenderMap.put(EntityWeatherStorm.class, new RenderWeatherStorm(this));
         this.playerRenderer = new RenderPlayer(this);
         this.skinMap.put("default", this.playerRenderer);
         this.skinMap.put("slim", new RenderPlayer(this, true));

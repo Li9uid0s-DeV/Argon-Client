@@ -392,5 +392,12 @@ public class BlockModelShapes
                 return new ModelResourceLocation(s + "_double_slab", s1);
             }
         });
+        this.registerBlockWithStateMapper(Blocks.WEATHER_RADAR, new StateMapperBase()
+        {
+            protected ModelResourceLocation getModelResourceLocation(IBlockState state)
+            {
+                return new ModelResourceLocation("beacon", "normal");
+            }
+        });
     }
 }

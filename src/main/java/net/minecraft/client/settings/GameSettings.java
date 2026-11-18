@@ -266,6 +266,7 @@ public class GameSettings
     public boolean ofVoiceChat = true;
     public float ofVoiceChatDistance = 32.0F;
     public float ofVoiceChatVolume = 1.0F;
+    public int ofWeather2Quality = 2;
     public int ofAnimatedWater = 0;
     public int ofAnimatedLava = 0;
     public boolean ofAnimatedFire = true;
@@ -2348,6 +2349,16 @@ public class GameSettings
         {
             this.ofVoiceChat = !this.ofVoiceChat;
         }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.WEATHER2_QUALITY)
+        {
+            ++this.ofWeather2Quality;
+
+            if (this.ofWeather2Quality > 3)
+            {
+                this.ofWeather2Quality = 0;
+            }
+        }
     }
 
     private String getKeyBindingOF(GameSettings.Options p_getKeyBindingOF_1_)
@@ -2873,6 +2884,24 @@ public class GameSettings
         {
             return s + Math.round(this.ofVoiceChatVolume * 100.0F) + "%";
         }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.WEATHER2_QUALITY)
+        {
+            switch (this.ofWeather2Quality)
+            {
+                case 0:
+                    return s + Lang.getOff();
+
+                case 1:
+                    return s + "Low (Max 8 Blocks)";
+
+                case 3:
+                    return s + "High (Max 64 Blocks)";
+
+                case 2:
+                default:
+                    return s + "Medium (Max 24 Blocks)";
+            }
+        }
         else if (p_getKeyBindingOF_1_ == GameSettings.Options.CUSTOM_ENTITY_MODELS)
         {
             return this.ofCustomEntityModels ? s + Lang.getOn() : s + Lang.getOff();
@@ -3389,6 +3418,12 @@ public class GameSettings
                         this.ofVoiceChatVolume = GameSettings.Options.VOICE_CHAT_VOLUME.snapToStepClamp(this.ofVoiceChatVolume);
                     }
 
+                    if (astring[0].equals("ofWeather2Quality") && astring.length >= 2)
+                    {
+                        this.ofWeather2Quality = Integer.valueOf(astring[1]).intValue();
+                        this.ofWeather2Quality = Config.limit(this.ofWeather2Quality, 0, 3);
+                    }
+
                     if (astring[0].equals("key_" + this.ofKeyBindZoom.getKeyDescription()))
                     {
                         this.ofKeyBindZoom.setKeyCode(Integer.parseInt(astring[1]));
@@ -3514,6 +3549,7 @@ public class GameSettings
             printwriter.println("ofVoiceChat:" + this.ofVoiceChat);
             printwriter.println("ofVoiceChatDistance:" + this.ofVoiceChatDistance);
             printwriter.println("ofVoiceChatVolume:" + this.ofVoiceChatVolume);
+            printwriter.println("ofWeather2Quality:" + this.ofWeather2Quality);
             printwriter.println("key_" + this.ofKeyBindZoom.getKeyDescription() + ":" + this.ofKeyBindZoom.getKeyCode());
             printwriter.println("key_" + this.ofKeyBindWaypoint.getKeyDescription() + ":" + this.ofKeyBindWaypoint.getKeyCode());
             printwriter.println("key_" + this.ofKeyBindVoicePTT.getKeyDescription() + ":" + this.ofKeyBindVoicePTT.getKeyCode());
@@ -3605,6 +3641,7 @@ public class GameSettings
         this.ofVoiceChat = true;
         this.ofVoiceChatDistance = 32.0F;
         this.ofVoiceChatVolume = 1.0F;
+        this.ofWeather2Quality = 2;
         BlockLeaves.setLeafCulling(this.ofLeafCulling);
         Config.updateFramebufferSize();
         this.ofCustomEntityModels = true;
@@ -3903,7 +3940,8 @@ public class GameSettings
         MINIMAP("2D Minimap", false, false),
         VOICE_CHAT("Proximity Voice", false, false),
         VOICE_CHAT_DISTANCE("Voice Range", true, false, 8.0F, 64.0F, 4.0F),
-        VOICE_CHAT_VOLUME("Voice Volume", true, false, 0.0F, 2.0F, 0.1F);
+        VOICE_CHAT_VOLUME("Voice Volume", true, false, 0.0F, 2.0F, 0.1F),
+        WEATHER2_QUALITY("Weather 2 Limit", false, false);
 
         private final boolean enumFloat;
         private final boolean enumBoolean;

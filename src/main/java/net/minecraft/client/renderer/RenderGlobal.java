@@ -65,6 +65,7 @@ import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.crash.ICrashReportDetail;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.effect.EntityWeatherEffect;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -729,6 +730,11 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             for (int j = 0; j < this.world.weatherEffects.size(); ++j)
             {
                 Entity entity1 = this.world.weatherEffects.get(j);
+
+                if (entity1 instanceof EntityWeatherEffect && ((EntityWeatherEffect)entity1).isLocalizedStorm() && Config.getWeather2Quality() <= 0)
+                {
+                    continue;
+                }
 
                 if (!flag || Reflector.callBoolean(entity1, Reflector.ForgeEntity_shouldRenderInPass, i))
                 {

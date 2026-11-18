@@ -7,10 +7,10 @@ import net.minecraft.world.gen.ChunkGeneratorSettings;
 
 public class GenLayerBiome extends GenLayer
 {
-    private Biome[] warmBiomes = new Biome[] {Biomes.DESERT, Biomes.DESERT, Biomes.DESERT, Biomes.SAVANNA, Biomes.SAVANNA, Biomes.PLAINS};
-    private final Biome[] mediumBiomes = new Biome[] {Biomes.FOREST, Biomes.ROOFED_FOREST, Biomes.EXTREME_HILLS, Biomes.PLAINS, Biomes.BIRCH_FOREST, Biomes.SWAMPLAND};
-    private final Biome[] coldBiomes = new Biome[] {Biomes.FOREST, Biomes.EXTREME_HILLS, Biomes.TAIGA, Biomes.PLAINS};
-    private final Biome[] iceBiomes = new Biome[] {Biomes.ICE_PLAINS, Biomes.ICE_PLAINS, Biomes.ICE_PLAINS, Biomes.COLD_TAIGA};
+    private Biome[] warmBiomes = new Biome[] {Biomes.DESERT, Biomes.DESERT, Biomes.SAVANNA, Biomes.PLAINS, Biomes.GRAND_CANYON_VALLEY};
+    private Biome[] mediumBiomes = new Biome[] {Biomes.FOREST, Biomes.ROOFED_FOREST, Biomes.EXTREME_HILLS, Biomes.PLAINS, Biomes.BIRCH_FOREST, Biomes.SWAMPLAND, Biomes.CHERRY_BLOSSOM_GROVE, Biomes.AUTUMN_MAPLE_FOREST};
+    private Biome[] coldBiomes = new Biome[] {Biomes.FOREST, Biomes.EXTREME_HILLS, Biomes.TAIGA, Biomes.PLAINS, Biomes.AUTUMN_MAPLE_FOREST, Biomes.ALPINE_PEAKS};
+    private Biome[] iceBiomes = new Biome[] {Biomes.ICE_PLAINS, Biomes.ICE_PLAINS, Biomes.COLD_TAIGA, Biomes.ALPINE_PEAKS};
     private final ChunkGeneratorSettings settings;
 
     public GenLayerBiome(long p_i45560_1_, GenLayer p_i45560_3_, WorldType p_i45560_4_, ChunkGeneratorSettings p_i45560_5_)
@@ -22,6 +22,14 @@ public class GenLayerBiome extends GenLayer
         {
             this.warmBiomes = new Biome[] {Biomes.DESERT, Biomes.FOREST, Biomes.EXTREME_HILLS, Biomes.SWAMPLAND, Biomes.PLAINS, Biomes.TAIGA};
             this.settings = null;
+        }
+        else if (p_i45560_4_ == WorldType.ARGON_REALISTIC)
+        {
+            this.warmBiomes = new Biome[] {Biomes.SAVANNA, Biomes.PLAINS, Biomes.GRAND_CANYON_VALLEY, Biomes.MESA, Biomes.CHERRY_BLOSSOM_GROVE};
+            this.mediumBiomes = new Biome[] {Biomes.CHERRY_BLOSSOM_GROVE, Biomes.AUTUMN_MAPLE_FOREST, Biomes.ALPINE_PEAKS, Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.EXTREME_HILLS, Biomes.PLAINS};
+            this.coldBiomes = new Biome[] {Biomes.ALPINE_PEAKS, Biomes.AUTUMN_MAPLE_FOREST, Biomes.REDWOOD_TAIGA, Biomes.TAIGA, Biomes.EXTREME_HILLS_WITH_TREES};
+            this.iceBiomes = new Biome[] {Biomes.ALPINE_PEAKS, Biomes.ICE_MOUNTAINS, Biomes.COLD_TAIGA};
+            this.settings = p_i45560_5_;
         }
         else
         {

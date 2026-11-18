@@ -9,4 +9,30 @@ public abstract class EntityWeatherEffect extends Entity
     {
         super(worldIn);
     }
+
+    public boolean isLocalizedStorm()
+    {
+        return false;
+    }
+
+    public boolean isTornado()
+    {
+        return this.getEfScale() >= 1;
+    }
+
+    public int getEfScale()
+    {
+        return 0;
+    }
+
+    public float getStormIntensity()
+    {
+        return 0.0F;
+    }
+
+    public float getStormRadius()
+    {
+        return 0.0F;
+    }
 }
+

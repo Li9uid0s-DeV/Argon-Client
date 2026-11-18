@@ -18,6 +18,7 @@ public class WorldType
     public static final WorldType AMPLIFIED = (new WorldType(3, "amplified")).enableInfoNotice();
     public static final WorldType CUSTOMIZED = new WorldType(4, "customized");
     public static final WorldType DEBUG_ALL_BLOCK_STATES = new WorldType(5, "debug_all_block_states");
+    public static final WorldType ARGON_REALISTIC = (new WorldType(6, "argon_realistic")).enableInfoNotice();
 
     /** Default (1.1) world type. */
     public static final WorldType DEFAULT_1_1 = (new WorldType(8, "default_1_1", 0)).setCanBeCreated(false);
@@ -62,6 +63,11 @@ public class WorldType
      */
     public String getTranslationKey()
     {
+        if (this == ARGON_REALISTIC)
+        {
+            return "\u00a7bArgon Realistic";
+        }
+
         return "generator." + this.name;
     }
 
@@ -70,6 +76,11 @@ public class WorldType
      */
     public String getInfoTranslationKey()
     {
+        if (this == ARGON_REALISTIC)
+        {
+            return "JJThunder-style +/-2000m scale mountains, deep canyons & Argon scenic biomes.";
+        }
+
         return this.getTranslationKey() + ".info";
     }
 

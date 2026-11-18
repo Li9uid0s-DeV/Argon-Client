@@ -174,6 +174,89 @@ public class ChunkGeneratorOverworld implements IChunkGenerator
                 biome.genTerrainBlocks(this.world, this.rand, primer, x * 16 + i, z * 16 + j, this.depthBuffer[j + i * 16]);
             }
         }
+
+        if (this.terrainType == WorldType.ARGON_REALISTIC)
+        {
+            this.applyArgonRealisticStrata(x, z, primer, biomesIn);
+        }
+    }
+
+    private void applyArgonRealisticStrata(int chunkX, int chunkZ, ChunkPrimer primer, Biome[] biomesIn)
+    {
+        int[] surfaceY = new int[256];
+
+        for (int lx = 0; lx < 16; ++lx)
+        {
+            for (int lz = 0; lz < 16; ++lz)
+            {
+                int sy = 0;
+
+                for (int y = 255; y >= 1; --y)
+                {
+                    IBlockState state = primer.getBlockState(lx, y, lz);
+
+                    if (state.getBlock() != Blocks.AIR && state.getBlock() != Blocks.WATER && state.getBlock() != Blocks.ICE)
+                    {
+                        sy = y;
+                        break;
+                    }
+                }
+
+                surfaceY[lz + lx * 16] = sy;
+            }
+        }
+
+        IBlockState stoneState = Blocks.STONE.getDefaultState();
+        IBlockState cobbleState = Blocks.COBBLESTONE.getDefaultState();
+        IBlockState snowBlockState = Blocks.SNOW.getDefaultState();
+        IBlockState packedIceState = Blocks.PACKED_ICE.getDefaultState();
+
+        for (int lx = 0; lx < 16; ++lx)
+        {
+            for (int lz = 0; lz < 16; ++lz)
+            {
+                int sy = surfaceY[lz + lx * 16];
+
+                if (sy <= this.settings.seaLevel + 2)
+                {
+                    continue;
+                }
+
+                int sx0 = surfaceY[lz + Math.max(0, lx - 1) * 16];
+                int sx1 = surfaceY[lz + Math.min(15, lx + 1) * 16];
+                int sz0 = surfaceY[Math.max(0, lz - 1) + lx * 16];
+                int sz1 = surfaceY[Math.min(15, lz + 1) + lx * 16];
+                int slope = Math.max(Math.abs(sx1 - sx0), Math.abs(sz1 - sz0));
+                Biome biome = biomesIn[lz + lx * 16];
+                double noiseVal = this.depthBuffer[lz + lx * 16];
+
+                if (slope >= 5 && biome != Biomes.GRAND_CANYON_VALLEY && biome != Biomes.MESA)
+                {
+                    int cliffDepth = Math.min(4, slope - 2);
+
+                    for (int dy = 0; dy < cliffDepth && sy - dy > 1; ++dy)
+                    {
+                        primer.setBlockState(lx, sy - dy, lz, (dy == 0 && noiseVal > 1.2D) ? cobbleState : stoneState);
+                    }
+                }
+                else if (sy >= 158 + (int)(noiseVal * 4.0D))
+                {
+                    if (sy >= 192 && slope <= 3)
+                    {
+                        primer.setBlockState(lx, sy, lz, snowBlockState);
+
+                        if (sy > 205 && noiseVal > 0.6D)
+                        {
+                            primer.setBlockState(lx, sy - 1, lz, packedIceState);
+                        }
+                    }
+                    else if (slope <= 4)
+                    {
+                        primer.setBlockState(lx, sy, lz, snowBlockState);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -247,6 +330,13 @@ public class ChunkGeneratorOverworld implements IChunkGenerator
         this.depthRegion = this.depthNoise.generateNoiseOctaves(this.depthRegion, p_185978_1_, p_185978_3_, 5, 5, (double)this.settings.depthNoiseScaleX, (double)this.settings.depthNoiseScaleZ, (double)this.settings.depthNoiseScaleExponent);
         float f = this.settings.coordinateScale;
         float f1 = this.settings.heightScale;
+
+        if (this.terrainType == WorldType.ARGON_REALISTIC)
+        {
+            f *= 0.82F;
+            f1 *= 1.35F;
+        }
+
         this.mainNoiseRegion = this.mainPerlinNoise.generateNoiseOctaves(this.mainNoiseRegion, p_185978_1_, p_185978_2_, p_185978_3_, 5, 33, 5, (double)(f / this.settings.mainNoiseScaleX), (double)(f1 / this.settings.mainNoiseScaleY), (double)(f / this.settings.mainNoiseScaleZ));
         this.minLimitRegion = this.minLimitPerlinNoise.generateNoiseOctaves(this.minLimitRegion, p_185978_1_, p_185978_2_, p_185978_3_, 5, 33, 5, (double)f, (double)f1, (double)f);
         this.maxLimitRegion = this.maxLimitPerlinNoise.generateNoiseOctaves(this.maxLimitRegion, p_185978_1_, p_185978_2_, p_185978_3_, 5, 33, 5, (double)f, (double)f1, (double)f);
@@ -276,8 +366,21 @@ public class ChunkGeneratorOverworld implements IChunkGenerator
                             f5 = 1.0F + f5 * 2.0F;
                             f6 = 1.0F + f6 * 4.0F;
                         }
+                        else if (this.terrainType == WorldType.ARGON_REALISTIC)
+                        {
+                            if (f5 > 0.0F)
+                            {
+                                f5 = 0.45F + f5 * 2.15F;
+                                f6 = 0.35F + f6 * 2.85F;
+                            }
+                            else
+                            {
+                                f5 = f5 * 1.45F - 0.08F;
+                                f6 = f6 * 1.35F;
+                            }
+                        }
 
-                        float f7 = this.biomeWeights[j1 + 2 + (k1 + 2) * 5] / (f5 + 2.0F);
+                        float f7 = this.biomeWeights[j1 + 2 + (k1 + 2) * 5] / (Math.max(-1.75F, f5) + 2.0F);
 
                         if (biome1.getBaseHeight() > biome.getBaseHeight())
                         {
@@ -329,6 +432,35 @@ public class ChunkGeneratorOverworld implements IChunkGenerator
                 double d8 = (double)f3;
                 double d9 = (double)f2;
                 d8 = d8 + d7 * 0.2D;
+
+                if (this.terrainType == WorldType.ARGON_REALISTIC)
+                {
+                    // JJThunder-style -2000m to +2000m virtual elevation synthesis mapped onto chunk heightmap
+                    double wx = (double)((p_185978_1_ + k) * 4);
+                    double wz = (double)((p_185978_3_ + l) * 4);
+                    double ridgePrimary = 1.0D - Math.abs(Math.sin(wx * 0.0019D + d7 * 1.3D) * Math.cos(wz * 0.0019D - d7 * 1.1D));
+                    double ridgeSecondary = 1.0D - Math.abs(Math.cos((wx - wz) * 0.0047D) * Math.sin((wx + wz) * 0.0047D));
+                    double ridgeMultifractal = ridgePrimary * ridgePrimary * (0.68D + 0.32D * ridgeSecondary * ridgeSecondary);
+                    double canyonTrough = Math.sin(wx * 0.0013D - wz * 0.0008D) * Math.cos(wz * 0.0015D + wx * 0.0011D);
+
+                    // Virtual elevation in [-2000.0, +2000.0] meters
+                    double virtualMeters;
+
+                    if (d8 >= 0.0D)
+                    {
+                        virtualMeters = MathHelper.clamp((d8 * 950.0D) + ridgeMultifractal * 1350.0D * Math.min(1.5D, d8 + 0.35D), -2000.0D, 2000.0D);
+                    }
+                    else
+                    {
+                        double gorgeCarve = Math.max(0.0D, -canyonTrough) * 900.0D;
+                        virtualMeters = MathHelper.clamp(d8 * 1150.0D - gorgeCarve, -2000.0D, 2000.0D);
+                    }
+
+                    // Map [-2000m, +2000m] into heightmap base offset while keeping full 3D overhang detail
+                    d8 += (virtualMeters / 2000.0D) * 2.15D;
+                    d9 = Math.max(0.15D, d9 * (1.0D + Math.abs(virtualMeters) / 2600.0D));
+                }
+
                 d8 = d8 * (double)this.settings.baseSize / 8.0D;
                 double d0 = (double)this.settings.baseSize + d8 * 4.0D;
 

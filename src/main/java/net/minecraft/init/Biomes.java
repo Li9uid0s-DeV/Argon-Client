@@ -82,6 +82,10 @@ public abstract class Biomes
     public static final Biome MUTATED_MESA;
     public static final Biome MUTATED_MESA_ROCK;
     public static final Biome MUTATED_MESA_CLEAR_ROCK;
+    public static final Biome CHERRY_BLOSSOM_GROVE;
+    public static final Biome AUTUMN_MAPLE_FOREST;
+    public static final Biome ALPINE_PEAKS;
+    public static final Biome GRAND_CANYON_VALLEY;
 
     private static Biome getRegisteredBiome(String id)
     {
@@ -168,6 +172,10 @@ public abstract class Biomes
             MUTATED_MESA = getRegisteredBiome("mutated_mesa");
             MUTATED_MESA_ROCK = getRegisteredBiome("mutated_mesa_rock");
             MUTATED_MESA_CLEAR_ROCK = getRegisteredBiome("mutated_mesa_clear_rock");
+            CHERRY_BLOSSOM_GROVE = getRegisteredBiome("cherry_blossom_grove");
+            AUTUMN_MAPLE_FOREST = getRegisteredBiome("autumn_maple_forest");
+            ALPINE_PEAKS = getRegisteredBiome("alpine_peaks");
+            GRAND_CANYON_VALLEY = getRegisteredBiome("grand_canyon_valley");
         }
     }
 }

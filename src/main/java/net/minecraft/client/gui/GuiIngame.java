@@ -36,6 +36,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
+import net.minecraft.entity.effect.EntityWeatherStorm;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -2081,6 +2082,54 @@ public class GuiIngame extends Gui
             }
         }
 
+        // Render Weather 2 Doppler Tornado Radar blips on Minimap
+        EntityWeatherStorm nearestStorm = null;
+        int nearestStormDist = Integer.MAX_VALUE;
+
+        if (Config.getWeather2Quality() > 0 && this.mc.world != null)
+        {
+            List<Entity> weatherList = this.mc.world.weatherEffects;
+
+            for (int i = 0; i < weatherList.size(); ++i)
+            {
+                Entity we = weatherList.get(i);
+
+                if (we instanceof EntityWeatherStorm && !we.isDead)
+                {
+                    EntityWeatherStorm storm = (EntityWeatherStorm)we;
+                    double sdx = storm.posX - viewEntity.posX;
+                    double sdz = storm.posZ - viewEntity.posZ;
+                    int sDist = MathHelper.floor(Math.sqrt(sdx * sdx + sdz * sdz));
+
+                    if (sDist < nearestStormDist)
+                    {
+                        nearestStormDist = sDist;
+                        nearestStorm = storm;
+                    }
+
+                    double spx = sdx * scale;
+                    double spz = sdz * scale;
+                    double sMax = Math.max(Math.abs(spx), Math.abs(spz));
+
+                    if (sMax > halfSpan && sMax > 0.001D)
+                    {
+                        spx = spx / sMax * halfSpan;
+                        spz = spz / sMax * halfSpan;
+                    }
+
+                    int sx = mapCenterX + MathHelper.floor(spx + 0.5D);
+                    int sy = mapCenterY + MathHelper.floor(spz + 0.5D);
+                    int ef = storm.getEfScale();
+                    int radarCol = ef >= 5 ? 0xFFFF1122 : (ef >= 3 ? 0xFFFF5511 : 0xFFFFAA00);
+
+                    drawRect(sx - 3, sy - 3, sx + 4, sy + 4, 0xAA000000);
+                    drawRect(sx - 2, sy - 2, sx + 3, sy + 3, radarCol);
+                    String efTag = ef >= 1 ? "EF" + ef : "STM";
+                    fontRenderer.drawStringWithShadow("\u00a7c" + efTag, (float)(sx - 6), (float)(sy - 10), 0xFFFFFF);
+                }
+            }
+        }
+
         // Player center position & direction arrow
         float yawRad = (viewEntity.rotationYaw + 180.0F) * 0.017453292F;
         int tipX = mapCenterX + Math.round(-MathHelper.sin(yawRad) * 3.0F);
@@ -2095,10 +2144,14 @@ public class GuiIngame extends Gui
         fontRenderer.drawStringWithShadow("\u00a77W", (float)(mapX + 2), (float)(mapCenterY - 4), 0xCCCCCC);
         fontRenderer.drawStringWithShadow("\u00a77E", (float)(mapX + mapSize - 7), (float)(mapCenterY - 4), 0xCCCCCC);
 
-        // Footer bar: nearest waypoint or [B] Waypoint hint
+        // Footer bar: active tornado alert, nearest waypoint, or [B] Waypoint hint
         String footerText;
 
-        if (nearestWp != null)
+        if (nearestStorm != null && nearestStorm.getEfScale() >= 1)
+        {
+            footerText = "\u00a7c\u26a0 EF-" + nearestStorm.getEfScale() + " \u00a77(" + nearestStormDist + "m)";
+        }
+        else if (nearestWp != null)
         {
             String wpLabel = nearestWp.name.length() > 7 ? nearestWp.name.substring(0, 7) : nearestWp.name;
             footerText = "\u00a7b\u25c6 \u00a7f" + wpLabel + " \u00a77(" + nearestDist + "m)";

@@ -932,6 +932,7 @@ public class RenderItem implements IResourceManagerReloadListener
         this.registerBlock(Blocks.BONE_BLOCK, "bone_block");
         this.registerBlock(Blocks.STRUCTURE_VOID, "structure_void");
         this.registerBlock(Blocks.OBSERVER, "observer");
+        this.registerBlock(Blocks.WEATHER_RADAR, "beacon");
         this.registerBlock(Blocks.WHITE_SHULKER_BOX, "white_shulker_box");
         this.registerBlock(Blocks.ORANGE_SHULKER_BOX, "orange_shulker_box");
         this.registerBlock(Blocks.MAGENTA_SHULKER_BOX, "magenta_shulker_box");

@@ -27,6 +27,7 @@ public class GuiArgonSettings extends GuiScreen
         GameSettings.Options.VOICE_CHAT,
         GameSettings.Options.VOICE_CHAT_DISTANCE,
         GameSettings.Options.VOICE_CHAT_VOLUME,
+        GameSettings.Options.WEATHER2_QUALITY,
         GameSettings.Options.RESOLUTION_SCALE
     };
     private TooltipManager tooltipManager = new TooltipManager(this);
@@ -50,7 +51,7 @@ public class GuiArgonSettings extends GuiScreen
         {
             GameSettings.Options gamesettings$options = enumOptions[i];
             int j = this.width / 2 - 155 + i % 2 * 160;
-            int k = this.height / 6 + 21 * (i / 2) - 12;
+            int k = this.height / 6 + 21 * (i / 2) - 18;
 
             if (!gamesettings$options.getEnumFloat())
             {
@@ -62,7 +63,7 @@ public class GuiArgonSettings extends GuiScreen
             }
         }
 
-        int extraRowY = this.height / 6 + 21 * (enumOptions.length / 2) - 12;
+        int extraRowY = this.height / 6 + 21 * ((enumOptions.length + 1) / 2) - 18;
         this.buttonList.add(new GuiButton(201, this.width / 2 - 155, extraRowY, 150, 20, "\u00a7bWaypoints Manager..."));
         this.buttonList.add(new GuiButton(202, this.width / 2 + 5, extraRowY, 150, 20, "\u00a7bSkin Maker..."));
         this.buttonList.add(new GuiButton(200, this.width / 2 - 100, this.height / 6 + 168 + 11, I18n.format("gui.done")));
