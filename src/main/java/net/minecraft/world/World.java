@@ -1757,6 +1757,7 @@ public abstract class World implements IBlockAccess
             this.addedTileEntityList.clear();
         }
 
+        net.minecraft.argon.create.CreateWorldManager.tickWorld(this);
         this.profiler.endSection();
         this.profiler.endSection();
     }

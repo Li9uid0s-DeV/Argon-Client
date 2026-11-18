@@ -1045,6 +1045,11 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                 TileEntityRendererDispatcher.instance.drawBatch(i);
             }
 
+            if (i == 0)
+            {
+                net.minecraft.argon.create.FlywheelBatchRenderer.flush(d3, d4, d5);
+            }
+
             this.renderOverlayDamaged = true;
             this.preRenderDamagedBlocks();
 
@@ -2880,6 +2885,11 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             }
 
             GlStateManager.disableBlend();
+        }
+
+        if (execute == 0)
+        {
+            net.minecraft.argon.create.CreateClientHooks.renderSelectionOverlays(player, partialTicks);
         }
     }
 

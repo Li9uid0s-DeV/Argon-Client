@@ -1090,12 +1090,13 @@ public class Item
         registerItem(2265, "record_ward", (new ItemRecord("ward", SoundEvents.RECORD_WARD)).setUnlocalizedName("record"));
         registerItem(2266, "record_11", (new ItemRecord("11", SoundEvents.RECORD_11)).setUnlocalizedName("record"));
         registerItem(2267, "record_wait", (new ItemRecord("wait", SoundEvents.RECORD_WAIT)).setUnlocalizedName("record"));
+        net.minecraft.argon.create.CreateItems.registerItemsAndBlocks();
     }
 
     /**
      * Register a default ItemBlock for the given Block.
      */
-    private static void registerItemBlock(Block blockIn)
+    public static void registerItemBlock(Block blockIn)
     {
         registerItemBlock(blockIn, new ItemBlock(blockIn));
     }
@@ -1109,7 +1110,7 @@ public class Item
         BLOCK_TO_ITEM.put(blockIn, itemIn);
     }
 
-    private static void registerItem(int id, String textualID, Item itemIn)
+    public static void registerItem(int id, String textualID, Item itemIn)
     {
         registerItem(id, new ResourceLocation(textualID), itemIn);
     }

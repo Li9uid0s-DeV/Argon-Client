@@ -85,6 +85,7 @@ public class TileEntityRendererDispatcher
         this.renderers.put(TileEntityStructure.class, new TileEntityStructureRenderer());
         this.renderers.put(TileEntityShulkerBox.class, new TileEntityShulkerBoxRenderer(new ModelShulker()));
         this.renderers.put(TileEntityBed.class, new TileEntityBedRenderer());
+        this.renderers.put(net.minecraft.argon.create.TileEntityCreateBase.class, new net.minecraft.argon.create.TileEntityCreateRenderer());
 
         for (TileEntitySpecialRenderer<?> tileentityspecialrenderer : this.renderers.values())
         {

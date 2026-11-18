@@ -77,6 +77,12 @@ public class BlockModelShapes
 
         if (ibakedmodel == null || ibakedmodel == this.modelManager.getMissingModel())
         {
+            TextureAtlasSprite createSprite = net.minecraft.argon.create.CreateClientHooks.getFallbackTexture(this, block);
+            if (createSprite != null)
+            {
+                return createSprite;
+            }
+
             if (block == Blocks.WALL_SIGN || block == Blocks.STANDING_SIGN || block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST || block == Blocks.STANDING_BANNER || block == Blocks.WALL_BANNER || block == Blocks.BED)
             {
                 return this.modelManager.getTextureMap().getAtlasSprite("minecraft:blocks/planks_oak");
@@ -399,5 +405,6 @@ public class BlockModelShapes
                 return new ModelResourceLocation("beacon", "normal");
             }
         });
+        net.minecraft.argon.create.CreateClientHooks.registerBlockModels(this);
     }
 }

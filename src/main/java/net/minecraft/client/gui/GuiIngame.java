@@ -1724,6 +1724,11 @@ public class GuiIngame extends Gui
             this.renderJadeHud(hudWidth, hudHeight, fontRenderer);
         }
 
+        if (this.mc.player != null && this.mc.player.getRidingEntity() instanceof net.minecraft.argon.create.EntityArgonTrain)
+        {
+            this.renderCreateTrainHud(hudWidth, hudHeight, fontRenderer, (net.minecraft.argon.create.EntityArgonTrain)this.mc.player.getRidingEntity());
+        }
+
         if (Config.isMinimap())
         {
             this.renderMinimapHud(hudWidth, hudHeight, viewEntity, fontRenderer);
@@ -1834,6 +1839,27 @@ public class GuiIngame extends Gui
             titleLine = this.cachedJadeTitle;
             subLine = this.cachedJadeSub;
             iconStack = this.cachedJadeIcon;
+
+            net.minecraft.tileentity.TileEntity te = this.mc.world.getTileEntity(pos);
+
+            if (te instanceof net.minecraft.argon.create.TileEntityCreateBase)
+            {
+                java.util.List<String> createLines = new java.util.ArrayList<String>();
+                ((net.minecraft.argon.create.TileEntityCreateBase)te).appendJadeInfo(createLines);
+
+                if (!createLines.isEmpty())
+                {
+                    StringBuilder sb = new StringBuilder();
+
+                    for (int ci = 0; ci < createLines.size(); ++ci)
+                    {
+                        if (ci > 0) sb.append(" \u00a78| ");
+                        sb.append(createLines.get(ci));
+                    }
+
+                    subLine = sb.toString();
+                }
+            }
         }
 
         if (titleLine == null || subLine == null)
@@ -1885,6 +1911,19 @@ public class GuiIngame extends Gui
             GlStateManager.enableBlend();
             GlStateManager.popMatrix();
         }
+    }
+
+    private void renderCreateTrainHud(double hudWidth, double hudHeight, FontRenderer fontRenderer, net.minecraft.argon.create.EntityArgonTrain train)
+    {
+        double mps = Math.abs(train.getTrainSpeed()) * 20.0D;
+        String mode = train.isAutopilot() ? "\u00a7b[AUTOPILOT]" : "\u00a7a[MANUAL W/S]";
+        String label = "\u00a76Train \u00a7f" + String.format("%.1f m/s", mps) + "  " + mode + "  \u00a77(" + train.getCarriages().size() + " cars)";
+        int w = fontRenderer.getStringWidth(label) + 14;
+        int x = (int)(hudWidth / 2.0D) - w / 2;
+        int y = (int)hudHeight - 54;
+        drawRect(x, y, x + w, y + 14, 0x99000000);
+        drawRect(x, y, x + w, y + 2, 0xFFE6B84D);
+        fontRenderer.drawStringWithShadow(label, (float)(x + 7), (float)(y + 4), 0xFFFFFF);
     }
 
     private String computeJadeToolInfo(IBlockState state, BlockPos pos)

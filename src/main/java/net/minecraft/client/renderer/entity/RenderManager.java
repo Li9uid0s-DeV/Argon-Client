@@ -239,6 +239,7 @@ public class RenderManager
         this.entityRenderMap.put(EntityLlamaSpit.class, new RenderLlamaSpit(this));
         this.entityRenderMap.put(EntityLightningBolt.class, new RenderLightningBolt(this));
         this.entityRenderMap.put(EntityWeatherStorm.class, new RenderWeatherStorm(this));
+        this.entityRenderMap.put(net.minecraft.argon.create.EntityArgonTrain.class, new net.minecraft.argon.create.RenderArgonTrain(this));
         this.playerRenderer = new RenderPlayer(this);
         this.skinMap.put("default", this.playerRenderer);
         this.skinMap.put("slim", new RenderPlayer(this, true));

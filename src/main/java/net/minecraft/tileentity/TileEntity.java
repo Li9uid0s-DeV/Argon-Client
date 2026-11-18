@@ -33,7 +33,7 @@ public abstract class TileEntity
     /** the Block type that this TileEntity is contained within */
     protected Block blockType;
 
-    private static void register(String p_190560_0_, Class <? extends TileEntity > p_190560_1_)
+    public static void register(String p_190560_0_, Class <? extends TileEntity > p_190560_1_)
     {
         REGISTRY.putObject(new ResourceLocation(p_190560_0_), p_190560_1_);
     }
@@ -353,5 +353,6 @@ public abstract class TileEntity
         register("command_block", TileEntityCommandBlock.class);
         register("shulker_box", TileEntityShulkerBox.class);
         register("bed", TileEntityBed.class);
+        net.minecraft.argon.create.CreateTileEntities.registerTileEntities();
     }
 }

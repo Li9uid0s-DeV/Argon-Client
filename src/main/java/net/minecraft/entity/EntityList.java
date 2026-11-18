@@ -391,6 +391,7 @@ public class EntityList
         register(105, "parrot", EntityParrot.class, "Parrot");
         register(120, "villager", EntityVillager.class, "Villager");
         register(200, "ender_crystal", EntityEnderCrystal.class, "EnderCrystal");
+        register(210, "argon_create_train", net.minecraft.argon.create.EntityArgonTrain.class, "ArgonCreateTrain");
         addSpawnInfo("bat", 4996656, 986895);
         addSpawnInfo("blaze", 16167425, 16775294);
         addSpawnInfo("cave_spider", 803406, 11013646);
