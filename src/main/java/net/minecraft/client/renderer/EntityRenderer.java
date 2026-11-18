@@ -20,6 +20,7 @@ import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiMainMenu;
@@ -314,7 +315,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
             try
             {
                 this.shaderGroup = new ShaderGroup(this.mc.getTextureManager(), this.resourceManager, this.mc.getFramebuffer(), resourceLocationIn);
-                this.shaderGroup.createBindFramebuffers(this.mc.displayWidth, this.mc.displayHeight);
+                this.shaderGroup.createBindFramebuffers(this.mc.getFramebuffer().framebufferWidth, this.mc.getFramebuffer().framebufferHeight);
                 this.useShader = true;
             }
             catch (IOException ioexception)
@@ -804,6 +805,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
         {
             if (!this.mc.gameSettings.debugCamEnable)
             {
+                this.applyArgonCameraEffects(entity, partialTicks);
                 float f6 = entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks + 180.0F;
                 float f7 = entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks;
                 float f8 = 0.0F;
@@ -827,6 +829,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
         }
         else if (!this.mc.gameSettings.debugCamEnable)
         {
+            this.applyArgonCameraEffects(entity, partialTicks);
             GlStateManager.rotate(entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks, 1.0F, 0.0F, 0.0F);
 
             if (entity instanceof EntityAnimal)
@@ -845,6 +848,74 @@ public class EntityRenderer implements IResourceManagerReloadListener
         d1 = entity.prevPosY + (entity.posY - entity.prevPosY) * (double)partialTicks + (double)f;
         d2 = entity.prevPosZ + (entity.posZ - entity.prevPosZ) * (double)partialTicks;
         this.cloudFog = this.mc.renderGlobal.hasCloudFog(d0, d1, d2, partialTicks);
+    }
+
+    private void applyArgonCameraEffects(Entity entity, float partialTicks)
+    {
+        if (!(entity instanceof EntityPlayerSP))
+        {
+            return;
+        }
+
+        EntityPlayerSP player = (EntityPlayerSP)entity;
+
+        if (player.isPlayerSleeping())
+        {
+            return;
+        }
+
+        float totalRoll = 0.0F;
+        float pitchOffset = 0.0F;
+        float verticalOffset = 0.0F;
+
+        if (Config.isBarrelRoll() && (player.isElytraFlying() || Math.abs(player.elytraRoll) > 0.01F || Math.abs(player.prevElytraRoll) > 0.01F))
+        {
+            float rollDiff = MathHelper.wrapDegrees(player.elytraRoll - player.prevElytraRoll);
+            totalRoll += MathHelper.wrapDegrees(player.prevElytraRoll + rollDiff * partialTicks);
+        }
+
+        if (Config.isCameraOverhaul())
+        {
+            float intensity = Config.getCameraOverhaulIntensity();
+            float overhaulRoll = (player.prevCameraOverhaulRoll + (player.cameraOverhaulRoll - player.prevCameraOverhaulRoll) * partialTicks) * intensity;
+            pitchOffset = (player.prevCameraOverhaulPitchOffset + (player.cameraOverhaulPitchOffset - player.prevCameraOverhaulPitchOffset) * partialTicks) * intensity;
+            verticalOffset = (player.prevCameraOverhaulVerticalOffset + (player.cameraOverhaulVerticalOffset - player.prevCameraOverhaulVerticalOffset) * partialTicks) * intensity;
+
+            if (!player.isElytraFlying())
+            {
+                totalRoll += overhaulRoll;
+            }
+        }
+
+        if (Config.isEnhancedVisuals())
+        {
+            float expIntensity = player.prevEnhancedExplosionIntensity + (player.enhancedExplosionIntensity - player.prevEnhancedExplosionIntensity) * partialTicks;
+            float dmgIntensity = player.prevEnhancedDamageIntensity + (player.enhancedDamageIntensity - player.prevEnhancedDamageIntensity) * partialTicks;
+            float shakePower = Math.max(expIntensity * 1.35F, dmgIntensity * 0.55F);
+
+            if (shakePower > 0.01F)
+            {
+                float time = ((float)player.ticksExisted + partialTicks) * 1.85F;
+                totalRoll += MathHelper.sin(time * 2.7F) * 4.2F * shakePower;
+                pitchOffset += MathHelper.cos(time * 3.3F) * 3.0F * shakePower;
+                verticalOffset += MathHelper.sin(time * 4.1F) * 0.06F * shakePower;
+            }
+        }
+
+        if (Math.abs(verticalOffset) > 0.0001F)
+        {
+            GlStateManager.translate(0.0F, verticalOffset, 0.0F);
+        }
+
+        if (Math.abs(totalRoll) > 0.001F)
+        {
+            GlStateManager.rotate(totalRoll, 0.0F, 0.0F, 1.0F);
+        }
+
+        if (Math.abs(pitchOffset) > 0.001F)
+        {
+            GlStateManager.rotate(pitchOffset, 1.0F, 0.0F, 0.0F);
+        }
     }
 
     /**
@@ -1312,6 +1383,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
 
             if (this.mc.world == null)
             {
+                this.mc.getFramebuffer().unbindFramebuffer();
                 GlStateManager.viewport(0, 0, this.mc.displayWidth, this.mc.displayHeight);
                 GlStateManager.matrixMode(5889);
                 GlStateManager.loadIdentity();
@@ -1358,6 +1430,15 @@ public class EntityRenderer implements IResourceManagerReloadListener
                 }
 
                 this.renderEndNanoTime = System.nanoTime();
+                this.mc.getFramebuffer().unbindFramebuffer();
+                GlStateManager.popMatrix();
+                GlStateManager.pushMatrix();
+                this.mc.getFramebuffer().framebufferRender(this.mc.displayWidth, this.mc.displayHeight);
+                GlStateManager.popMatrix();
+                GlStateManager.pushMatrix();
+                GlStateManager.viewport(0, 0, this.mc.displayWidth, this.mc.displayHeight);
+                GlStateManager.enableAlpha();
+                this.setupOverlayRendering();
                 this.mc.mcProfiler.endStartSection("gui");
 
                 if (!this.mc.gameSettings.hideGUI || this.mc.currentScreen != null)
@@ -1566,13 +1647,16 @@ public class EntityRenderer implements IResourceManagerReloadListener
         GlStateManager.enableCull();
         this.mc.mcProfiler.endStartSection("clear");
 
+        int fbWidth = this.mc.getFramebuffer().framebufferWidth;
+        int fbHeight = this.mc.getFramebuffer().framebufferHeight;
+
         if (flag)
         {
-            Shaders.setViewport(0, 0, this.mc.displayWidth, this.mc.displayHeight);
+            Shaders.setViewport(0, 0, fbWidth, fbHeight);
         }
         else
         {
-            GlStateManager.viewport(0, 0, this.mc.displayWidth, this.mc.displayHeight);
+            GlStateManager.viewport(0, 0, fbWidth, fbHeight);
         }
 
         this.updateFogColor(partialTicks);

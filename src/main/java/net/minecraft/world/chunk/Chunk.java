@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
+import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.crash.CrashReport;
@@ -1495,6 +1496,89 @@ public class Chunk
     public void setInhabitedTime(long newInhabitedTime)
     {
         this.inhabitedTime = newInhabitedTime;
+    }
+
+    public int getMinimapSurfaceInfo(int localX, int localZ, int referenceY, BlockPos.MutableBlockPos mutablePos)
+    {
+        if (this.isEmpty())
+        {
+            return 0;
+        }
+
+        int lx = localX & 15;
+        int lz = localZ & 15;
+        int worldX = (this.x << 4) + lx;
+        int worldZ = (this.z << 4) + lz;
+        int topY;
+
+        if (!this.world.provider.hasSkyLight())
+        {
+            int startY = MathHelper.clamp(referenceY + 4, 1, 125);
+            topY = startY;
+
+            for (int y = startY; y > 1 && y >= startY - 24; --y)
+            {
+                IBlockState st = this.getBlockState(lx, y, lz);
+
+                if (st.getMaterial() != Material.AIR)
+                {
+                    topY = y + 1;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            topY = this.getHeightValue(lx, lz) + 1;
+        }
+
+        if (topY <= 1)
+        {
+            return (1 << 16) | (MapColor.STONE.colorIndex & 63);
+        }
+
+        IBlockState surfaceState = Blocks.AIR.getDefaultState();
+        MapColor mapColor = MapColor.AIR;
+        int y = topY;
+
+        while (y > 0)
+        {
+            --y;
+            surfaceState = this.getBlockState(lx, y, lz);
+            mutablePos.setPos(worldX, y, worldZ);
+            mapColor = surfaceState.getMapColor(this.world, mutablePos);
+
+            if (mapColor != MapColor.AIR)
+            {
+                break;
+            }
+        }
+
+        if (mapColor == MapColor.AIR)
+        {
+            return 0;
+        }
+
+        int liquidDepth = 0;
+
+        if (y > 0 && surfaceState.getMaterial().isLiquid())
+        {
+            int checkY = y - 1;
+
+            while (checkY > 0 && liquidDepth < 15)
+            {
+                IBlockState below = this.getBlockState(lx, checkY--, lz);
+
+                if (!below.getMaterial().isLiquid())
+                {
+                    break;
+                }
+
+                ++liquidDepth;
+            }
+        }
+
+        return ((y & 255) << 16) | ((liquidDepth & 255) << 8) | (mapColor.colorIndex & 63);
     }
 
     public static enum EnumCreateEntityType

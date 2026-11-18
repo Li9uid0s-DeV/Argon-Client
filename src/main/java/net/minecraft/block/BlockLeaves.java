@@ -19,6 +19,7 @@ public abstract class BlockLeaves extends Block
 {
     public static final PropertyBool DECAYABLE = PropertyBool.create("decayable");
     public static final PropertyBool CHECK_DECAY = PropertyBool.create("check_decay");
+    public static boolean cullLeaves = true;
     protected boolean leavesFancy;
     int[] surroundings;
 
@@ -287,8 +288,21 @@ public abstract class BlockLeaves extends Block
 
     public abstract BlockPlanks.EnumType getWoodType(int meta);
 
+    public static void setLeafCulling(boolean cull)
+    {
+        cullLeaves = cull;
+    }
+
     public boolean shouldSideBeRendered(IBlockState blockState, IBlockAccess blockAccess, BlockPos pos, EnumFacing side)
     {
-        return !this.leavesFancy && blockAccess.getBlockState(pos.offset(side)).getBlock() == this ? false : super.shouldSideBeRendered(blockState, blockAccess, pos, side);
+        IBlockState iblockstate = blockAccess.getBlockState(pos.offset(side));
+        Block block = iblockstate.getBlock();
+
+        if ((!this.leavesFancy || cullLeaves) && (block == this || block instanceof BlockLeaves || iblockstate.getMaterial() == Material.LEAVES))
+        {
+            return false;
+        }
+
+        return super.shouldSideBeRendered(blockState, blockAccess, pos, side);
     }
 }

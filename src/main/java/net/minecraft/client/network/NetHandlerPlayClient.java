@@ -1177,6 +1177,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
         PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.gameController);
         Explosion explosion = new Explosion(this.gameController.world, (Entity)null, packetIn.getX(), packetIn.getY(), packetIn.getZ(), packetIn.getStrength(), packetIn.getAffectedBlockPositions());
         explosion.doExplosionB(true);
+        this.gameController.player.onExplosionImpact(packetIn.getX(), packetIn.getY(), packetIn.getZ(), packetIn.getStrength());
         this.gameController.player.motionX += (double)packetIn.getMotionX();
         this.gameController.player.motionY += (double)packetIn.getMotionY();
         this.gameController.player.motionZ += (double)packetIn.getMotionZ();
@@ -2065,6 +2066,19 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
             String s = packetbuffer3.readString(32767);
             String s1 = packetbuffer3.readString(256);
             this.gameController.getSoundHandler().stop(s1, SoundCategory.getByName(s));
+        }
+        else if (net.minecraft.src.ArgonVoiceChatManager.CHANNEL_ARGON_VC.equals(packetIn.getChannelName()) || net.minecraft.src.ArgonVoiceChatManager.CHANNEL_SIMPLE_VC.equals(packetIn.getChannelName()))
+        {
+            PacketBuffer voiceBuf = packetIn.getBufferData();
+
+            try
+            {
+                net.minecraft.src.ArgonVoiceChatManager.handleCustomPayload(packetIn.getChannelName(), voiceBuf, this.clientWorldController);
+            }
+            finally
+            {
+                voiceBuf.release();
+            }
         }
     }
 

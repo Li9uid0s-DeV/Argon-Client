@@ -11,6 +11,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.src.Config;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 
@@ -41,8 +42,54 @@ public class RenderEntityItem extends Render<EntityItem>
             boolean flag = p_177077_9_.isGui3d();
             int i = this.getModelCount(itemstack);
             float f = 0.25F;
-            float f1 = MathHelper.sin(((float)itemIn.getAge() + p_177077_8_) / 10.0F + itemIn.hoverStart) * 0.1F + 0.1F;
             float f2 = p_177077_9_.getItemCameraTransforms().getTransform(ItemCameraTransforms.TransformType.GROUND).scale.y;
+
+            if (Config.isItemPhysics())
+            {
+                float yaw = itemIn.hoverStart * (180F / (float)Math.PI);
+                boolean inLiquid = itemIn.isInWater() || itemIn.isInLava();
+
+                if (flag)
+                {
+                    float yOffset = itemIn.onGround ? 0.125F * f2 : 0.20F * f2;
+                    GlStateManager.translate((float)p_177077_2_, (float)p_177077_4_ + yOffset, (float)p_177077_6_);
+                    GlStateManager.rotate(yaw, 0.0F, 1.0F, 0.0F);
+
+                    if (!itemIn.onGround && !inLiquid)
+                    {
+                        float spin = (((float)itemIn.getAge() + p_177077_8_) * 16.0F) + yaw;
+                        GlStateManager.rotate(spin, 1.0F, 0.0F, 0.5F);
+                    }
+                    else if (inLiquid)
+                    {
+                        float floatTilt = MathHelper.sin(((float)itemIn.getAge() + p_177077_8_) * 0.12F + itemIn.hoverStart) * 12.0F;
+                        GlStateManager.rotate(floatTilt, 1.0F, 0.0F, 1.0F);
+                    }
+                }
+                else
+                {
+                    GlStateManager.translate((float)p_177077_2_, (float)p_177077_4_ + 0.025F, (float)p_177077_6_);
+                    GlStateManager.rotate(yaw, 0.0F, 1.0F, 0.0F);
+
+                    if (!itemIn.onGround && !inLiquid)
+                    {
+                        float airSpin = (((float)itemIn.getAge() + p_177077_8_) * 20.0F) + yaw;
+                        GlStateManager.rotate(airSpin, 1.0F, 0.25F, 0.0F);
+                    }
+                    else if (inLiquid)
+                    {
+                        float waterBob = MathHelper.sin(((float)itemIn.getAge() + p_177077_8_) * 0.1F + itemIn.hoverStart) * 10.0F;
+                        GlStateManager.rotate(waterBob, 1.0F, 0.0F, 0.0F);
+                    }
+
+                    GlStateManager.rotate(90.0F, 1.0F, 0.0F, 0.0F);
+                }
+
+                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+                return i;
+            }
+
+            float f1 = MathHelper.sin(((float)itemIn.getAge() + p_177077_8_) / 10.0F + itemIn.hoverStart) * 0.1F + 0.1F;
             GlStateManager.translate((float)p_177077_2_, (float)p_177077_4_ + f1 + 0.25F * f2, (float)p_177077_6_);
 
             if (flag || this.renderManager.options != null)
@@ -85,6 +132,7 @@ public class RenderEntityItem extends Render<EntityItem>
      */
     public void doRender(EntityItem entity, double x, double y, double z, float entityYaw, float partialTicks)
     {
+        this.shadowSize = Config.isItemPhysics() ? 0.0F : 0.15F;
         ItemStack itemstack = entity.getItem();
         int i = itemstack.isEmpty() ? 187 : Item.getIdFromItem(itemstack.getItem()) + itemstack.getMetadata();
         this.random.setSeed((long)i);

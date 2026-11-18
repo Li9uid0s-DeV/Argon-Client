@@ -3,6 +3,7 @@ package net.minecraft.client.gui;
 import java.io.IOException;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.settings.GameSettings;
+import net.minecraft.src.GuiArgonSettings;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -82,6 +83,7 @@ public class GuiOptions extends GuiScreen
         this.buttonList.add(new GuiButton(103, this.width / 2 + 5, this.height / 6 + 96 - 6, 150, 20, I18n.format("options.chat.title")));
         this.buttonList.add(new GuiButton(105, this.width / 2 - 155, this.height / 6 + 120 - 6, 150, 20, I18n.format("options.resourcepack")));
         this.buttonList.add(new GuiButton(104, this.width / 2 + 5, this.height / 6 + 120 - 6, 150, 20, I18n.format("options.snooper.view")));
+        this.buttonList.add(new GuiButton(240, this.width / 2 - 155, this.height / 6 + 144 - 6, 310, 20, "\u00a7bArgon \u00a79Client \u00a7fSettings..."));
         this.buttonList.add(new GuiButton(200, this.width / 2 - 100, this.height / 6 + 168, I18n.format("gui.done")));
     }
 
@@ -198,6 +200,12 @@ public class GuiOptions extends GuiScreen
             {
                 this.mc.gameSettings.saveOptions();
                 this.mc.displayGuiScreen(new GuiScreenOptionsSounds(this, this.settings));
+            }
+
+            if (button.id == 240)
+            {
+                this.mc.gameSettings.saveOptions();
+                this.mc.displayGuiScreen(new GuiArgonSettings(this, this.settings));
             }
         }
     }

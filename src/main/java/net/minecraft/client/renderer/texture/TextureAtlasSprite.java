@@ -579,6 +579,21 @@ public class TextureAtlasSprite
     public void setIndexInMap(int p_setIndexInMap_1_)
     {
         this.indexInMap = p_setIndexInMap_1_;
+
+        if (this.spriteSingle != null)
+        {
+            this.spriteSingle.indexInMap = p_setIndexInMap_1_;
+        }
+
+        if (this.spriteNormal != null)
+        {
+            this.spriteNormal.indexInMap = p_setIndexInMap_1_;
+        }
+
+        if (this.spriteSpecular != null)
+        {
+            this.spriteSpecular.indexInMap = p_setIndexInMap_1_;
+        }
     }
 
     private void fixTransparentColor(int[] p_fixTransparentColor_1_)
@@ -631,13 +646,13 @@ public class TextureAtlasSprite
     public double getSpriteU16(float p_getSpriteU16_1_)
     {
         float f = this.maxU - this.minU;
-        return (double)((p_getSpriteU16_1_ - this.minU) / f * 16.0F);
+        return f <= 0.0F ? 0.0D : (double)((p_getSpriteU16_1_ - this.minU) / f * 16.0F);
     }
 
     public double getSpriteV16(float p_getSpriteV16_1_)
     {
         float f = this.maxV - this.minV;
-        return (double)((p_getSpriteV16_1_ - this.minV) / f * 16.0F);
+        return f <= 0.0F ? 0.0D : (double)((p_getSpriteV16_1_ - this.minV) / f * 16.0F);
     }
 
     public void bindSpriteTexture()

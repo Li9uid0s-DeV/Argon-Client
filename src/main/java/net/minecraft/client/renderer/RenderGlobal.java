@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockEnderChest;
+import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockSign;
 import net.minecraft.block.BlockSkull;
 import net.minecraft.block.SoundType;
@@ -74,6 +75,7 @@ import net.minecraft.item.ItemRecord;
 import net.minecraft.src.ChunkUtils;
 import net.minecraft.src.CloudRenderer;
 import net.minecraft.src.Config;
+import net.minecraft.src.ConnectedTextures;
 import net.minecraft.src.CustomColors;
 import net.minecraft.src.CustomSky;
 import net.minecraft.src.DynamicLights;
@@ -83,8 +85,11 @@ import net.minecraft.src.Reflector;
 import net.minecraft.src.RenderEnv;
 import net.minecraft.src.RenderInfoLazy;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntityBeacon;
 import net.minecraft.tileentity.TileEntityChest;
+import net.minecraft.tileentity.TileEntityEndGateway;
 import net.minecraft.tileentity.TileEntitySign;
+import net.minecraft.tileentity.TileEntityStructure;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.ClassInheritanceMultiMap;
 import net.minecraft.util.EnumFacing;
@@ -173,6 +178,7 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
     private ChunkRenderDispatcher renderDispatcher;
     private ChunkRenderContainer renderContainer;
     private int renderDistanceChunks = -1;
+    private final BlockPos.MutableBlockPos cullMutablePos = new BlockPos.MutableBlockPos();
 
     /** Render entities startup counter (init value=2) */
     private int renderEntitiesStartupCounter = 2;
@@ -288,7 +294,7 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             try
             {
                 this.entityOutlineShader = new ShaderGroup(this.mc.getTextureManager(), this.mc.getResourceManager(), this.mc.getFramebuffer(), resourcelocation);
-                this.entityOutlineShader.createBindFramebuffers(this.mc.displayWidth, this.mc.displayHeight);
+                this.entityOutlineShader.createBindFramebuffers(this.mc.getFramebuffer().framebufferWidth, this.mc.getFramebuffer().framebufferHeight);
                 this.entityOutlineFramebuffer = this.entityOutlineShader.getFramebufferRaw("final");
             }
             catch (IOException ioexception)
@@ -317,7 +323,7 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
         {
             GlStateManager.enableBlend();
             GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-            this.entityOutlineFramebuffer.framebufferRenderExt(this.mc.displayWidth, this.mc.displayHeight, false);
+            this.entityOutlineFramebuffer.framebufferRenderExt(this.mc.getFramebuffer().framebufferWidth, this.mc.getFramebuffer().framebufferHeight, false);
             GlStateManager.disableBlend();
         }
     }
@@ -579,7 +585,9 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             this.displayListEntitiesDirty = true;
             Blocks.LEAVES.setGraphicsLevel(Config.isTreesFancy());
             Blocks.LEAVES2.setGraphicsLevel(Config.isTreesFancy());
+            BlockLeaves.setLeafCulling(Config.isLeafCulling());
             BlockModelRenderer.updateAoLightValue();
+            ConnectedTextures.resetCache();
             renderInfoCache.clear();
 
             if (Config.isDynamicLights())
@@ -678,6 +686,7 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             double d2 = renderViewEntity.prevPosZ + (renderViewEntity.posZ - renderViewEntity.prevPosZ) * (double)partialTicks;
             this.world.profiler.startSection("prepare");
             TileEntityRendererDispatcher.instance.prepare(this.world, this.mc.getTextureManager(), this.mc.fontRenderer, this.mc.getRenderViewEntity(), this.mc.objectMouseOver, partialTicks);
+            TileEntityRendererDispatcher.instance.setCamera(camera);
             this.renderManager.cacheActiveRenderInfo(this.world, this.mc.fontRenderer, this.mc.getRenderViewEntity(), this.mc.pointedEntity, this.mc.gameSettings, partialTicks);
 
             if (i == 0)
@@ -692,6 +701,10 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             double d3 = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * (double)partialTicks;
             double d4 = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * (double)partialTicks;
             double d5 = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * (double)partialTicks;
+            double eyeX = d3;
+            double eyeY = d4 + (double)entity.getEyeHeight();
+            double eyeZ = d5;
+            boolean entityCulling = Config.isEntityCulling();
             TileEntityRendererDispatcher.staticPlayerX = d3;
             TileEntityRendererDispatcher.staticPlayerY = d4;
             TileEntityRendererDispatcher.staticPlayerZ = d5;
@@ -762,6 +775,14 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
 
                                 if ((entity2 != this.mc.getRenderViewEntity() || this.mc.gameSettings.thirdPersonView != 0 || flag3) && (entity2.posY < 0.0D || entity2.posY >= 256.0D || this.world.isBlockLoaded(blockpos$pooledmutableblockpos.setPos(entity2))))
                                 {
+                                    boolean outlineActive = this.isOutlineActive(entity2, entity, camera);
+
+                                    if (entityCulling && !outlineActive && entity2 != this.mc.getRenderViewEntity() && !entity2.isRidingOrBeingRiddenBy(this.mc.player) && this.isEntityOccluded(entity2, eyeX, eyeY, eyeZ))
+                                    {
+                                        ++this.countEntitiesHidden;
+                                        continue;
+                                    }
+
                                     ++this.countEntitiesRendered;
                                     this.renderedEntity = entity2;
 
@@ -773,7 +794,7 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                                     this.renderManager.renderEntityStatic(entity2, partialTicks, false);
                                     this.renderedEntity = null;
 
-                                    if (this.isOutlineActive(entity2, entity, camera))
+                                    if (outlineActive)
                                     {
                                         list1.add(entity2);
                                     }
@@ -783,6 +804,10 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                                         list2.add(entity2);
                                     }
                                 }
+                            }
+                            else
+                            {
+                                ++this.countEntitiesHidden;
                             }
                         }
                     }
@@ -946,6 +971,16 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                             }
                         }
 
+                        if (!TileEntityRendererDispatcher.instance.shouldRenderTileEntity(tileentity1, camera))
+                        {
+                            continue;
+                        }
+
+                        if (entityCulling && this.isTileEntityOccluded(tileentity1, eyeX, eyeY, eyeZ))
+                        {
+                            continue;
+                        }
+
                         Class oclass = tileentity1.getClass();
 
                         if (oclass == TileEntitySign.class && !Config.zoomMode)
@@ -977,6 +1012,16 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                 {
                     if (!flag1 || Reflector.callBoolean(tileentity, Reflector.ForgeTileEntity_shouldRenderInPass, i))
                     {
+                        if (!TileEntityRendererDispatcher.instance.shouldRenderTileEntity(tileentity, camera))
+                        {
+                            continue;
+                        }
+
+                        if (entityCulling && this.isTileEntityOccluded(tileentity, eyeX, eyeY, eyeZ))
+                        {
+                            continue;
+                        }
+
                         if (flag4)
                         {
                             Shaders.nextBlockEntity(tileentity);
@@ -986,6 +1031,8 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
                     }
                 }
             }
+
+            TileEntityRendererDispatcher.instance.setCamera((ICamera)null);
 
             if (Reflector.ForgeTileEntity_hasFastRenderer.exists())
             {
@@ -1038,6 +1085,137 @@ public class RenderGlobal implements IWorldEventListener, IResourceManagerReload
             this.mc.entityRenderer.disableLightmap();
             this.mc.mcProfiler.endSection();
         }
+    }
+
+    private boolean isEntityOccluded(Entity entityIn, double eyeX, double eyeY, double eyeZ)
+    {
+        if (this.world == null || entityIn.ignoreFrustumCheck)
+        {
+            return false;
+        }
+
+        double targetX = entityIn.posX;
+        double targetYLow = entityIn.posY + (double)entityIn.height * 0.25D;
+        double targetYHigh = entityIn.posY + (double)entityIn.height * 0.85D;
+        double targetZ = entityIn.posZ;
+        double dx = targetX - eyeX;
+        double dy = targetYHigh - eyeY;
+        double dz = targetZ - eyeZ;
+        double distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq <= 16.0D)
+        {
+            return false;
+        }
+
+        int targetBlockX = MathHelper.floor(targetX);
+        int targetBlockYHigh = MathHelper.floor(targetYHigh);
+        int targetBlockZ = MathHelper.floor(targetZ);
+
+        if (!this.isLineOccluded(eyeX, eyeY, eyeZ, targetX, targetYHigh, targetZ, targetBlockX, targetBlockYHigh, targetBlockZ))
+        {
+            return false;
+        }
+
+        int targetBlockYLow = MathHelper.floor(targetYLow);
+        return this.isLineOccluded(eyeX, eyeY, eyeZ, targetX, targetYLow, targetZ, targetBlockX, targetBlockYLow, targetBlockZ);
+    }
+
+    private boolean isTileEntityOccluded(TileEntity tileEntityIn, double eyeX, double eyeY, double eyeZ)
+    {
+        if (this.world == null || tileEntityIn instanceof TileEntityBeacon || tileEntityIn instanceof TileEntityEndGateway || tileEntityIn instanceof TileEntityStructure)
+        {
+            return false;
+        }
+
+        BlockPos pos = tileEntityIn.getPos();
+        int bx = pos.getX();
+        int by = pos.getY();
+        int bz = pos.getZ();
+        double targetX = (double)bx + 0.5D;
+        double targetY = (double)by + 0.5D;
+        double targetZ = (double)bz + 0.5D;
+        double dx = targetX - eyeX;
+        double dy = targetY - eyeY;
+        double dz = targetZ - eyeZ;
+        double distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq <= 16.0D)
+        {
+            return false;
+        }
+
+        if (!this.isLineOccluded(eyeX, eyeY, eyeZ, targetX, targetY, targetZ, bx, by, bz))
+        {
+            return false;
+        }
+
+        return this.isLineOccluded(eyeX, eyeY, eyeZ, targetX, (double)by + 0.85D, targetZ, bx, by, bz);
+    }
+
+    private boolean isLineOccluded(double startX, double startY, double startZ, double endX, double endY, double endZ, int targetBlockX, int targetBlockY, int targetBlockZ)
+    {
+        double dx = endX - startX;
+        double dy = endY - startY;
+        double dz = endZ - startZ;
+        double dist = MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist <= 2.0D)
+        {
+            return false;
+        }
+
+        int steps = Math.min(16, Math.max(3, (int)dist));
+        double invSteps = 1.0D / (double)steps;
+        int startBlockX = MathHelper.floor(startX);
+        int startBlockY = MathHelper.floor(startY);
+        int startBlockZ = MathHelper.floor(startZ);
+        int prevX = startBlockX;
+        int prevY = startBlockY;
+        int prevZ = startBlockZ;
+
+        for (int s = 1; s < steps; ++s)
+        {
+            double t = (double)s * invSteps;
+            int cx = MathHelper.floor(startX + dx * t);
+            int cy = MathHelper.floor(startY + dy * t);
+            int cz = MathHelper.floor(startZ + dz * t);
+
+            if (cx == prevX && cy == prevY && cz == prevZ)
+            {
+                continue;
+            }
+
+            prevX = cx;
+            prevY = cy;
+            prevZ = cz;
+
+            if (Math.abs(cx - targetBlockX) <= 1 && Math.abs(cy - targetBlockY) <= 1 && Math.abs(cz - targetBlockZ) <= 1)
+            {
+                continue;
+            }
+
+            if (cy < 0 || cy >= 256)
+            {
+                continue;
+            }
+
+            this.cullMutablePos.setPos(cx, cy, cz);
+
+            if (!this.world.isBlockLoaded(this.cullMutablePos))
+            {
+                continue;
+            }
+
+            IBlockState state = this.world.getBlockState(this.cullMutablePos);
+
+            if (state.isOpaqueCube() && state.isFullCube())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

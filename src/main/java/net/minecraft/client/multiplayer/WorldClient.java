@@ -45,6 +45,7 @@ import net.minecraft.world.GameType;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.WorldSettings;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.storage.SaveDataMemoryStorage;
@@ -67,6 +68,8 @@ public class WorldClient extends World
     private int playerChunkX = Integer.MIN_VALUE;
     private int playerChunkY = Integer.MIN_VALUE;
     private boolean playerUpdate = false;
+    private int argonAmbientCooldown = 40;
+    private final BlockPos.MutableBlockPos ambientProbePos = new BlockPos.MutableBlockPos();
 
     public WorldClient(NetHandlerPlayClient netHandler, WorldSettings settings, int dimension, EnumDifficulty difficulty, Profiler profilerIn)
     {
@@ -125,6 +128,12 @@ public class WorldClient extends World
         this.clientChunkProvider.tick();
         this.profiler.endStartSection("blocks");
         this.updateBlocks();
+
+        if (Config.isAmbientSounds())
+        {
+            this.updateAmbientSounds();
+        }
+
         this.profiler.endSection();
     }
 
@@ -413,6 +422,145 @@ public class WorldClient extends World
             {
                 this.playSound((double)j + 0.5D, (double)l + 0.5D, (double)k + 0.5D, SoundEvents.AMBIENT_CAVE, SoundCategory.AMBIENT, 0.7F, 0.8F + this.rand.nextFloat() * 0.2F, false);
                 this.ambienceTicks = this.rand.nextInt(12000) + 6000;
+            }
+        }
+    }
+
+    private void updateAmbientSounds()
+    {
+        EntityPlayerSP player = this.mc.player;
+
+        if (player == null || this.mc.isGamePaused())
+        {
+            return;
+        }
+
+        if (this.argonAmbientCooldown > 0)
+        {
+            --this.argonAmbientCooldown;
+            return;
+        }
+
+        this.argonAmbientCooldown = 45 + this.rand.nextInt(55);
+        int px = MathHelper.floor(player.posX);
+        int py = MathHelper.floor(player.posY + (double)player.getEyeHeight());
+        int pz = MathHelper.floor(player.posZ);
+        this.ambientProbePos.setPos(px, py, pz);
+
+        Biome biome = this.getBiome(this.ambientProbePos);
+        int skyLight = this.getLightFor(EnumSkyBlock.SKY, this.ambientProbePos);
+        DimensionType dimType = this.provider.getDimensionType();
+        double sx = player.posX + (this.rand.nextDouble() - 0.5D) * 14.0D;
+        double sy = player.posY + (this.rand.nextDouble() - 0.3D) * 6.0D;
+        double sz = player.posZ + (this.rand.nextDouble() - 0.5D) * 14.0D;
+
+        if (dimType == DimensionType.NETHER)
+        {
+            SoundEvent netherSound = this.rand.nextBoolean() ? SoundEvents.BLOCK_LAVA_POP : SoundEvents.BLOCK_FIRE_AMBIENT;
+            this.playSound(sx, sy, sz, netherSound, SoundCategory.AMBIENT, 0.16F, 0.65F + this.rand.nextFloat() * 0.25F, false);
+            return;
+        }
+
+        if (dimType == DimensionType.THE_END)
+        {
+            this.playSound(sx, sy, sz, SoundEvents.BLOCK_PORTAL_AMBIENT, SoundCategory.AMBIENT, 0.08F, 1.65F + this.rand.nextFloat() * 0.25F, false);
+            return;
+        }
+
+        // Cave / Underground environment
+        if (skyLight <= 2 && py < 58)
+        {
+            int roll = this.rand.nextInt(4);
+
+            if (roll == 0)
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_WATER_AMBIENT, SoundCategory.AMBIENT, 0.12F, 1.65F + this.rand.nextFloat() * 0.3F, false);
+            }
+            else if (roll == 1)
+            {
+                this.playSound(sx, sy, sz, SoundEvents.ENTITY_BAT_AMBIENT, SoundCategory.AMBIENT, 0.14F, 0.85F + this.rand.nextFloat() * 0.25F, false);
+            }
+            else if (roll == 2 && py < 28)
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_LAVA_POP, SoundCategory.AMBIENT, 0.14F, 0.6F + this.rand.nextFloat() * 0.2F, false);
+            }
+            else
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_STONE_STEP, SoundCategory.AMBIENT, 0.12F, 0.55F + this.rand.nextFloat() * 0.15F, false);
+            }
+
+            return;
+        }
+
+        // Rain / Storm weather environment
+        if (this.isRaining() && biome.canRain() && skyLight > 8)
+        {
+            if (this.rand.nextBoolean())
+            {
+                this.playSound(sx, sy + 3.0D, sz, SoundEvents.WEATHER_RAIN_ABOVE, SoundCategory.AMBIENT, 0.16F, 0.75F + this.rand.nextFloat() * 0.25F, false);
+            }
+            else
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_GRASS_STEP, SoundCategory.AMBIENT, 0.14F, 0.6F + this.rand.nextFloat() * 0.2F, false);
+            }
+
+            return;
+        }
+
+        long dayTime = this.getWorldTime() % 24000L;
+        boolean isNight = dayTime >= 13000L && dayTime <= 23000L;
+        String biomeName = biome.getBiomeName() != null ? biome.getBiomeName().toLowerCase() : "";
+
+        // Ocean, Beach, River, Swamp
+        if (biomeName.contains("ocean") || biomeName.contains("beach") || biomeName.contains("river") || biomeName.contains("swamp"))
+        {
+            if (biomeName.contains("swamp") && isNight && this.rand.nextBoolean())
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_WATERLILY_PLACE, SoundCategory.AMBIENT, 0.12F, 1.55F + this.rand.nextFloat() * 0.3F, false);
+            }
+            else
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_WATER_AMBIENT, SoundCategory.AMBIENT, 0.16F, 0.75F + this.rand.nextFloat() * 0.25F, false);
+            }
+
+            return;
+        }
+
+        // Desert, Mesa, Savanna (Dry / Arid biomes)
+        if (!biome.canRain() || biome.getTemperature() >= 1.2F)
+        {
+            this.playSound(sx, sy, sz, SoundEvents.BLOCK_SAND_STEP, SoundCategory.AMBIENT, 0.14F, 0.55F + this.rand.nextFloat() * 0.2F, false);
+            return;
+        }
+
+        // Snowy, Frozen, or High Altitude Mountain Biomes
+        if (biome.isSnowyBiome() || biome.getTempCategory() == Biome.TempCategory.COLD || py > 105)
+        {
+            this.playSound(sx, sy + 2.0D, sz, SoundEvents.BLOCK_SNOW_STEP, SoundCategory.AMBIENT, 0.15F, 0.55F + this.rand.nextFloat() * 0.2F, false);
+            return;
+        }
+
+        // Forest, Jungle, Taiga, Plains (Day vs Night)
+        if (!isNight)
+        {
+            if (this.rand.nextInt(3) != 0)
+            {
+                this.playSound(sx, sy + 2.0D, sz, SoundEvents.ENTITY_PARROT_AMBIENT, SoundCategory.AMBIENT, 0.14F, 1.15F + this.rand.nextFloat() * 0.35F, false);
+            }
+            else
+            {
+                this.playSound(sx, sy + 1.0D, sz, SoundEvents.BLOCK_GRASS_STEP, SoundCategory.AMBIENT, 0.13F, 0.68F + this.rand.nextFloat() * 0.2F, false);
+            }
+        }
+        else
+        {
+            if (this.rand.nextInt(5) == 0)
+            {
+                this.playSound(sx, sy, sz, SoundEvents.ENTITY_WOLF_HOWL, SoundCategory.AMBIENT, 0.07F, 0.85F + this.rand.nextFloat() * 0.15F, false);
+            }
+            else
+            {
+                this.playSound(sx, sy, sz, SoundEvents.BLOCK_GRASS_HIT, SoundCategory.AMBIENT, 0.09F, 1.8F + this.rand.nextFloat() * 0.2F, false);
             }
         }
     }

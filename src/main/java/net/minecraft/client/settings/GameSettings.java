@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.minecraft.block.BlockLeaves;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.gui.GuiScreen;
@@ -36,6 +37,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.play.client.CPacketClientSettings;
 import net.minecraft.src.ClearWater;
 import net.minecraft.src.Config;
+import net.minecraft.src.ConnectedTextures;
 import net.minecraft.src.CustomColors;
 import net.minecraft.src.CustomSky;
 import net.minecraft.src.DynamicLights;
@@ -248,6 +250,22 @@ public class GameSettings
     public int ofDynamicLights = 3;
     public boolean ofCustomEntityModels = true;
     public int ofScreenshotSize = 1;
+    public float ofResolutionScale = 1.0F;
+    public boolean ofLeafCulling = true;
+    public boolean ofEntityCulling = true;
+    public boolean ofCameraOverhaul = true;
+    public float ofCameraOverhaulIntensity = 1.0F;
+    public boolean ofBarrelRoll = true;
+    public float ofBarrelRollSensitivity = 1.0F;
+    public boolean ofEnhancedVisuals = true;
+    public boolean ofSoundPhysics = true;
+    public boolean ofItemPhysics = true;
+    public boolean ofAmbientSounds = true;
+    public boolean ofJadeHud = true;
+    public boolean ofMinimap = true;
+    public boolean ofVoiceChat = true;
+    public float ofVoiceChatDistance = 32.0F;
+    public float ofVoiceChatVolume = 1.0F;
     public int ofAnimatedWater = 0;
     public int ofAnimatedLava = 0;
     public boolean ofAnimatedFire = true;
@@ -278,6 +296,9 @@ public class GameSettings
     private static final int[] OF_DYNAMIC_LIGHTS = new int[] {3, 1, 2};
     private static final String[] KEYS_DYNAMIC_LIGHTS = new String[] {"options.off", "options.graphics.fast", "options.graphics.fancy"};
     public KeyBinding ofKeyBindZoom;
+    public KeyBinding ofKeyBindWaypoint;
+    public KeyBinding ofKeyBindVoicePTT;
+    public KeyBinding ofKeyBindVoiceMute;
     private File optionsFileOF;
     private boolean needsResourceRefresh = false;
 
@@ -305,7 +326,10 @@ public class GameSettings
         this.optionsFileOF = new File(optionsFileIn, "optionsof.txt");
         this.limitFramerate = (int)GameSettings.Options.FRAMERATE_LIMIT.getValueMax();
         this.ofKeyBindZoom = new KeyBinding("of.key.zoom", 46, "key.categories.misc");
-        this.keyBindings = (KeyBinding[])ArrayUtils.add(this.keyBindings, this.ofKeyBindZoom);
+        this.ofKeyBindWaypoint = new KeyBinding("Argon Waypoints", 48, "key.categories.misc");
+        this.ofKeyBindVoicePTT = new KeyBinding("Voice Push-To-Talk", 47, "key.categories.misc");
+        this.ofKeyBindVoiceMute = new KeyBinding("Voice Mute Mic", 50, "key.categories.misc");
+        this.keyBindings = (KeyBinding[])ArrayUtils.addAll(this.keyBindings, new KeyBinding[] {this.ofKeyBindZoom, this.ofKeyBindWaypoint, this.ofKeyBindVoicePTT, this.ofKeyBindVoiceMute});
         GameSettings.Options.RENDER_DISTANCE.setValueMax(32.0F);
         this.renderDistanceChunks = 8;
         this.loadOptions();
@@ -1687,6 +1711,37 @@ public class GameSettings
 
             this.ofFullscreenMode = astring[i1];
         }
+
+        if (p_setOptionFloatValueOF_1_ == GameSettings.Options.RESOLUTION_SCALE)
+        {
+            float f = GameSettings.Options.RESOLUTION_SCALE.snapToStepClamp(p_setOptionFloatValueOF_2_);
+
+            if (Math.abs(this.ofResolutionScale - f) > 0.001F)
+            {
+                this.ofResolutionScale = f;
+                Config.updateFramebufferSize();
+            }
+        }
+
+        if (p_setOptionFloatValueOF_1_ == GameSettings.Options.CAMERA_OVERHAUL_INTENSITY)
+        {
+            this.ofCameraOverhaulIntensity = GameSettings.Options.CAMERA_OVERHAUL_INTENSITY.snapToStepClamp(p_setOptionFloatValueOF_2_);
+        }
+
+        if (p_setOptionFloatValueOF_1_ == GameSettings.Options.BARREL_ROLL_SENSITIVITY)
+        {
+            this.ofBarrelRollSensitivity = GameSettings.Options.BARREL_ROLL_SENSITIVITY.snapToStepClamp(p_setOptionFloatValueOF_2_);
+        }
+
+        if (p_setOptionFloatValueOF_1_ == GameSettings.Options.VOICE_CHAT_DISTANCE)
+        {
+            this.ofVoiceChatDistance = GameSettings.Options.VOICE_CHAT_DISTANCE.snapToStepClamp(p_setOptionFloatValueOF_2_);
+        }
+
+        if (p_setOptionFloatValueOF_1_ == GameSettings.Options.VOICE_CHAT_VOLUME)
+        {
+            this.ofVoiceChatVolume = GameSettings.Options.VOICE_CHAT_VOLUME.snapToStepClamp(p_setOptionFloatValueOF_2_);
+        }
     }
 
     private float getOptionFloatValueOF(GameSettings.Options p_getOptionFloatValueOF_1_)
@@ -1727,6 +1782,26 @@ public class GameSettings
                 int i = list.indexOf(this.ofFullscreenMode);
                 return i < 0 ? 0.0F : (float)(i + 1);
             }
+        }
+        else if (p_getOptionFloatValueOF_1_ == GameSettings.Options.RESOLUTION_SCALE)
+        {
+            return this.ofResolutionScale;
+        }
+        else if (p_getOptionFloatValueOF_1_ == GameSettings.Options.CAMERA_OVERHAUL_INTENSITY)
+        {
+            return this.ofCameraOverhaulIntensity;
+        }
+        else if (p_getOptionFloatValueOF_1_ == GameSettings.Options.BARREL_ROLL_SENSITIVITY)
+        {
+            return this.ofBarrelRollSensitivity;
+        }
+        else if (p_getOptionFloatValueOF_1_ == GameSettings.Options.VOICE_CHAT_DISTANCE)
+        {
+            return this.ofVoiceChatDistance;
+        }
+        else if (p_getOptionFloatValueOF_1_ == GameSettings.Options.VOICE_CHAT_VOLUME)
+        {
+            return this.ofVoiceChatVolume;
         }
         else
         {
@@ -1969,8 +2044,9 @@ public class GameSettings
                 this.ofConnectedTextures = 1;
             }
 
-            if (this.ofConnectedTextures == 2)
+            if (ConnectedTextures.isInitialized())
             {
+                ConnectedTextures.resetCache();
                 this.mc.renderGlobal.loadRenderers();
             }
             else
@@ -2214,6 +2290,63 @@ public class GameSettings
         if (p_setOptionValueOF_1_ == GameSettings.Options.ADVANCED_TOOLTIPS)
         {
             this.advancedItemTooltips = !this.advancedItemTooltips;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.LEAF_CULLING)
+        {
+            this.ofLeafCulling = !this.ofLeafCulling;
+            BlockLeaves.setLeafCulling(this.ofLeafCulling);
+            this.mc.renderGlobal.loadRenderers();
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.ENTITY_CULLING)
+        {
+            this.ofEntityCulling = !this.ofEntityCulling;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.CAMERA_OVERHAUL)
+        {
+            this.ofCameraOverhaul = !this.ofCameraOverhaul;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.BARREL_ROLL)
+        {
+            this.ofBarrelRoll = !this.ofBarrelRoll;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.ENHANCED_VISUALS)
+        {
+            this.ofEnhancedVisuals = !this.ofEnhancedVisuals;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.SOUND_PHYSICS)
+        {
+            this.ofSoundPhysics = !this.ofSoundPhysics;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.ITEM_PHYSICS)
+        {
+            this.ofItemPhysics = !this.ofItemPhysics;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.AMBIENT_SOUNDS)
+        {
+            this.ofAmbientSounds = !this.ofAmbientSounds;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.JADE_HUD)
+        {
+            this.ofJadeHud = !this.ofJadeHud;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.MINIMAP)
+        {
+            this.ofMinimap = !this.ofMinimap;
+        }
+
+        if (p_setOptionValueOF_1_ == GameSettings.Options.VOICE_CHAT)
+        {
+            this.ofVoiceChat = !this.ofVoiceChat;
         }
     }
 
@@ -2672,6 +2805,74 @@ public class GameSettings
         {
             return this.ofScreenshotSize <= 1 ? s + Lang.getDefault() : s + this.ofScreenshotSize + "x";
         }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.RESOLUTION_SCALE)
+        {
+            int i1 = Math.round(this.ofResolutionScale * 100.0F);
+            String s2 = i1 % 25 == 0 && i1 % 50 != 0 ? (i1 / 100) + "." + (i1 % 100) + "x" : (i1 / 100) + "." + ((i1 % 100) / 10) + "x";
+            return s + s2 + " (" + i1 + "%)";
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.LEAF_CULLING)
+        {
+            return this.ofLeafCulling ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.ENTITY_CULLING)
+        {
+            return this.ofEntityCulling ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.CAMERA_OVERHAUL)
+        {
+            return this.ofCameraOverhaul ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.CAMERA_OVERHAUL_INTENSITY)
+        {
+            int pct = Math.round(this.ofCameraOverhaulIntensity * 100.0F);
+            return s + pct + "%";
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.BARREL_ROLL)
+        {
+            return this.ofBarrelRoll ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.BARREL_ROLL_SENSITIVITY)
+        {
+            int pct = Math.round(this.ofBarrelRollSensitivity * 100.0F);
+            return s + pct + "%";
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.ENHANCED_VISUALS)
+        {
+            return this.ofEnhancedVisuals ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.SOUND_PHYSICS)
+        {
+            return this.ofSoundPhysics ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.ITEM_PHYSICS)
+        {
+            return this.ofItemPhysics ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.AMBIENT_SOUNDS)
+        {
+            return this.ofAmbientSounds ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.JADE_HUD)
+        {
+            return this.ofJadeHud ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.MINIMAP)
+        {
+            return this.ofMinimap ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.VOICE_CHAT)
+        {
+            return this.ofVoiceChat ? s + Lang.getOn() : s + Lang.getOff();
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.VOICE_CHAT_DISTANCE)
+        {
+            return s + Math.round(this.ofVoiceChatDistance) + "m";
+        }
+        else if (p_getKeyBindingOF_1_ == GameSettings.Options.VOICE_CHAT_VOLUME)
+        {
+            return s + Math.round(this.ofVoiceChatVolume * 100.0F) + "%";
+        }
         else if (p_getKeyBindingOF_1_ == GameSettings.Options.CUSTOM_ENTITY_MODELS)
         {
             return this.ofCustomEntityModels ? s + Lang.getOn() : s + Lang.getOff();
@@ -3102,9 +3303,110 @@ public class GameSettings
                         this.ofTranslucentBlocks = Config.limit(this.ofTranslucentBlocks, 0, 2);
                     }
 
+                    if (astring[0].equals("ofResolutionScale") && astring.length >= 2)
+                    {
+                        this.ofResolutionScale = Float.valueOf(astring[1]).floatValue();
+                        this.ofResolutionScale = GameSettings.Options.RESOLUTION_SCALE.snapToStepClamp(this.ofResolutionScale);
+                    }
+
+                    if (astring[0].equals("ofLeafCulling") && astring.length >= 2)
+                    {
+                        this.ofLeafCulling = Boolean.valueOf(astring[1]).booleanValue();
+                        BlockLeaves.setLeafCulling(this.ofLeafCulling);
+                    }
+
+                    if (astring[0].equals("ofEntityCulling") && astring.length >= 2)
+                    {
+                        this.ofEntityCulling = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofCameraOverhaul") && astring.length >= 2)
+                    {
+                        this.ofCameraOverhaul = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofCameraOverhaulIntensity") && astring.length >= 2)
+                    {
+                        this.ofCameraOverhaulIntensity = Float.valueOf(astring[1]).floatValue();
+                        this.ofCameraOverhaulIntensity = GameSettings.Options.CAMERA_OVERHAUL_INTENSITY.snapToStepClamp(this.ofCameraOverhaulIntensity);
+                    }
+
+                    if (astring[0].equals("ofBarrelRoll") && astring.length >= 2)
+                    {
+                        this.ofBarrelRoll = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofBarrelRollSensitivity") && astring.length >= 2)
+                    {
+                        this.ofBarrelRollSensitivity = Float.valueOf(astring[1]).floatValue();
+                        this.ofBarrelRollSensitivity = GameSettings.Options.BARREL_ROLL_SENSITIVITY.snapToStepClamp(this.ofBarrelRollSensitivity);
+                    }
+
+                    if (astring[0].equals("ofEnhancedVisuals") && astring.length >= 2)
+                    {
+                        this.ofEnhancedVisuals = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofSoundPhysics") && astring.length >= 2)
+                    {
+                        this.ofSoundPhysics = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofItemPhysics") && astring.length >= 2)
+                    {
+                        this.ofItemPhysics = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofAmbientSounds") && astring.length >= 2)
+                    {
+                        this.ofAmbientSounds = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofJadeHud") && astring.length >= 2)
+                    {
+                        this.ofJadeHud = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofMinimap") && astring.length >= 2)
+                    {
+                        this.ofMinimap = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofVoiceChat") && astring.length >= 2)
+                    {
+                        this.ofVoiceChat = Boolean.valueOf(astring[1]).booleanValue();
+                    }
+
+                    if (astring[0].equals("ofVoiceChatDistance") && astring.length >= 2)
+                    {
+                        this.ofVoiceChatDistance = Float.valueOf(astring[1]).floatValue();
+                        this.ofVoiceChatDistance = GameSettings.Options.VOICE_CHAT_DISTANCE.snapToStepClamp(this.ofVoiceChatDistance);
+                    }
+
+                    if (astring[0].equals("ofVoiceChatVolume") && astring.length >= 2)
+                    {
+                        this.ofVoiceChatVolume = Float.valueOf(astring[1]).floatValue();
+                        this.ofVoiceChatVolume = GameSettings.Options.VOICE_CHAT_VOLUME.snapToStepClamp(this.ofVoiceChatVolume);
+                    }
+
                     if (astring[0].equals("key_" + this.ofKeyBindZoom.getKeyDescription()))
                     {
                         this.ofKeyBindZoom.setKeyCode(Integer.parseInt(astring[1]));
+                    }
+
+                    if (astring[0].equals("key_" + this.ofKeyBindWaypoint.getKeyDescription()))
+                    {
+                        this.ofKeyBindWaypoint.setKeyCode(Integer.parseInt(astring[1]));
+                    }
+
+                    if (astring[0].equals("key_" + this.ofKeyBindVoicePTT.getKeyDescription()))
+                    {
+                        this.ofKeyBindVoicePTT.setKeyCode(Integer.parseInt(astring[1]));
+                    }
+
+                    if (astring[0].equals("key_" + this.ofKeyBindVoiceMute.getKeyDescription()))
+                    {
+                        this.ofKeyBindVoiceMute.setKeyCode(Integer.parseInt(astring[1]));
                     }
                 }
                 catch (Exception exception1)
@@ -3196,7 +3498,26 @@ public class GameSettings
             printwriter.println("ofFastMath:" + this.ofFastMath);
             printwriter.println("ofFastRender:" + this.ofFastRender);
             printwriter.println("ofTranslucentBlocks:" + this.ofTranslucentBlocks);
+            printwriter.println("ofResolutionScale:" + this.ofResolutionScale);
+            printwriter.println("ofLeafCulling:" + this.ofLeafCulling);
+            printwriter.println("ofEntityCulling:" + this.ofEntityCulling);
+            printwriter.println("ofCameraOverhaul:" + this.ofCameraOverhaul);
+            printwriter.println("ofCameraOverhaulIntensity:" + this.ofCameraOverhaulIntensity);
+            printwriter.println("ofBarrelRoll:" + this.ofBarrelRoll);
+            printwriter.println("ofBarrelRollSensitivity:" + this.ofBarrelRollSensitivity);
+            printwriter.println("ofEnhancedVisuals:" + this.ofEnhancedVisuals);
+            printwriter.println("ofSoundPhysics:" + this.ofSoundPhysics);
+            printwriter.println("ofItemPhysics:" + this.ofItemPhysics);
+            printwriter.println("ofAmbientSounds:" + this.ofAmbientSounds);
+            printwriter.println("ofJadeHud:" + this.ofJadeHud);
+            printwriter.println("ofMinimap:" + this.ofMinimap);
+            printwriter.println("ofVoiceChat:" + this.ofVoiceChat);
+            printwriter.println("ofVoiceChatDistance:" + this.ofVoiceChatDistance);
+            printwriter.println("ofVoiceChatVolume:" + this.ofVoiceChatVolume);
             printwriter.println("key_" + this.ofKeyBindZoom.getKeyDescription() + ":" + this.ofKeyBindZoom.getKeyCode());
+            printwriter.println("key_" + this.ofKeyBindWaypoint.getKeyDescription() + ":" + this.ofKeyBindWaypoint.getKeyCode());
+            printwriter.println("key_" + this.ofKeyBindVoicePTT.getKeyDescription() + ":" + this.ofKeyBindVoicePTT.getKeyCode());
+            printwriter.println("key_" + this.ofKeyBindVoiceMute.getKeyDescription() + ":" + this.ofKeyBindVoiceMute.getKeyCode());
             printwriter.close();
         }
         catch (Exception exception1)
@@ -3268,6 +3589,24 @@ public class GameSettings
         this.ofAlternateBlocks = true;
         this.ofDynamicLights = 3;
         this.ofScreenshotSize = 1;
+        this.ofResolutionScale = 1.0F;
+        this.ofLeafCulling = true;
+        this.ofEntityCulling = true;
+        this.ofCameraOverhaul = true;
+        this.ofCameraOverhaulIntensity = 1.0F;
+        this.ofBarrelRoll = true;
+        this.ofBarrelRollSensitivity = 1.0F;
+        this.ofEnhancedVisuals = true;
+        this.ofSoundPhysics = true;
+        this.ofItemPhysics = true;
+        this.ofAmbientSounds = true;
+        this.ofJadeHud = true;
+        this.ofMinimap = true;
+        this.ofVoiceChat = true;
+        this.ofVoiceChatDistance = 32.0F;
+        this.ofVoiceChatVolume = 1.0F;
+        BlockLeaves.setLeafCulling(this.ofLeafCulling);
+        Config.updateFramebufferSize();
         this.ofCustomEntityModels = true;
         this.ofAoLevel = 1.0F;
         this.ofAaLevel = 0;
@@ -3548,7 +3887,23 @@ public class GameSettings
         ALTERNATE_BLOCKS("of.options.ALTERNATE_BLOCKS", false, false),
         CUSTOM_ENTITY_MODELS("of.options.CUSTOM_ENTITY_MODELS", false, false),
         ADVANCED_TOOLTIPS("of.options.ADVANCED_TOOLTIPS", false, false),
-        SCREENSHOT_SIZE("of.options.SCREENSHOT_SIZE", false, false);
+        SCREENSHOT_SIZE("of.options.SCREENSHOT_SIZE", false, false),
+        RESOLUTION_SCALE("Resolution Scale", true, false, 0.5F, 2.0F, 0.25F),
+        LEAF_CULLING("Leaf Culling", false, false),
+        ENTITY_CULLING("Entity Culling", false, false),
+        CAMERA_OVERHAUL("Camera Overhaul", false, false),
+        CAMERA_OVERHAUL_INTENSITY("Camera Tilt", true, false, 0.1F, 2.0F, 0.1F),
+        BARREL_ROLL("Do a Barrel Roll", false, false),
+        BARREL_ROLL_SENSITIVITY("Roll Sensitivity", true, false, 0.1F, 2.0F, 0.1F),
+        ENHANCED_VISUALS("Enhanced Visuals", false, false),
+        SOUND_PHYSICS("Sound Physics", false, false),
+        ITEM_PHYSICS("Item Physics", false, false),
+        AMBIENT_SOUNDS("Ambient Sounds", false, false),
+        JADE_HUD("Jade Info HUD", false, false),
+        MINIMAP("2D Minimap", false, false),
+        VOICE_CHAT("Proximity Voice", false, false),
+        VOICE_CHAT_DISTANCE("Voice Range", true, false, 8.0F, 64.0F, 4.0F),
+        VOICE_CHAT_VOLUME("Voice Volume", true, false, 0.0F, 2.0F, 0.1F);
 
         private final boolean enumFloat;
         private final boolean enumBoolean;

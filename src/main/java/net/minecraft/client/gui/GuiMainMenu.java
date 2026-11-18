@@ -304,7 +304,8 @@ public class GuiMainMenu extends GuiScreen
         }
         else
         {
-            this.realmsButton = this.addButton(new GuiButton(14, this.width / 2 - 100, p_73969_1_ + p_73969_2_ * 2, I18n.format("Fork on Github")));
+            this.buttonList.add(new GuiButton(20, this.width / 2 - 100, p_73969_1_ + p_73969_2_ * 2, 98, 20, "\u00a7bSkin Maker..."));
+            this.realmsButton = this.addButton(new GuiButton(14, this.width / 2 + 2, p_73969_1_ + p_73969_2_ * 2, 98, 20, I18n.format("Fork on Github")));
         }
     }
 
@@ -347,6 +348,11 @@ public class GuiMainMenu extends GuiScreen
         if (button.id == 2)
         {
             this.mc.displayGuiScreen(new GuiMultiplayer(this));
+        }
+
+        if (button.id == 20)
+        {
+            this.mc.displayGuiScreen(new net.minecraft.src.GuiArgonSkinMaker(this));
         }
 
         if (button.id == 14 && this.realmsButton.visible)
@@ -596,7 +602,7 @@ public class GuiMainMenu extends GuiScreen
             this.rotateAndBlurSkybox();
         }
 
-        this.mc.getFramebuffer().bindFramebuffer(true);
+        this.mc.getFramebuffer().unbindFramebuffer();
         GlStateManager.viewport(0, 0, this.mc.displayWidth, this.mc.displayHeight);
         float f2 = 120.0F / (float)(this.width > this.height ? this.width : this.height);
         float f = (float)this.height * f2 / 256.0F;
@@ -679,7 +685,7 @@ public class GuiMainMenu extends GuiScreen
         GlStateManager.scale(f, f, f);
         this.drawCenteredString(this.fontRenderer, this.splashText, 0, -8, -256);
         GlStateManager.popMatrix();
-        String s = "Eaglercraft 1.12 (cracked)";
+        String s = "\u00a7bArgon Client \u00a791.12.2";
 
         if (this.mc.isDemo())
         {

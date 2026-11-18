@@ -20,6 +20,7 @@ public class Framebuffer
     public int depthBuffer;
     public float[] framebufferColor;
     public int framebufferFilter;
+    public float resolutionScale = 1.0F;
 
     public Framebuffer(int width, int height, boolean useDepthIn)
     {
@@ -35,12 +36,39 @@ public class Framebuffer
         this.createBindFramebuffer(width, height);
     }
 
+    public void setResolutionScale(float scaleIn)
+    {
+        if (scaleIn < 0.5F)
+        {
+            scaleIn = 0.5F;
+        }
+        else if (scaleIn > 2.0F)
+        {
+            scaleIn = 2.0F;
+        }
+
+        this.resolutionScale = scaleIn;
+    }
+
+    public float getResolutionScale()
+    {
+        return this.resolutionScale;
+    }
+
+    public int getScaledDimension(int dimensionIn)
+    {
+        return Math.max(1, Math.round((float)dimensionIn * this.resolutionScale));
+    }
+
     public void createBindFramebuffer(int width, int height)
     {
+        int scaledWidth = this.getScaledDimension(width);
+        int scaledHeight = this.getScaledDimension(height);
+
         if (!OpenGlHelper.isFramebufferEnabled())
         {
-            this.framebufferWidth = width;
-            this.framebufferHeight = height;
+            this.framebufferWidth = scaledWidth;
+            this.framebufferHeight = scaledHeight;
         }
         else
         {
@@ -51,7 +79,7 @@ public class Framebuffer
                 this.deleteFramebuffer();
             }
 
-            this.createFramebuffer(width, height);
+            this.createFramebuffer(scaledWidth, scaledHeight);
             this.checkFramebufferComplete();
             OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, 0);
         }
@@ -87,10 +115,10 @@ public class Framebuffer
 
     public void createFramebuffer(int width, int height)
     {
-        this.framebufferWidth = width;
-        this.framebufferHeight = height;
-        this.framebufferTextureWidth = width;
-        this.framebufferTextureHeight = height;
+        this.framebufferWidth = Math.max(1, width);
+        this.framebufferHeight = Math.max(1, height);
+        this.framebufferTextureWidth = this.framebufferWidth;
+        this.framebufferTextureHeight = this.framebufferHeight;
 
         if (!OpenGlHelper.isFramebufferEnabled())
         {
@@ -106,7 +134,7 @@ public class Framebuffer
                 this.depthBuffer = OpenGlHelper.glGenRenderbuffers();
             }
 
-            this.setFramebufferFilter(9728);
+            this.setFramebufferFilter(Math.abs(this.resolutionScale - 1.0F) < 0.001F ? 9728 : 9729);
             GlStateManager.bindTexture(this.framebufferTexture);
             GlStateManager.glTexImage2D(3553, 0, 32856, this.framebufferTextureWidth, this.framebufferTextureHeight, 0, 6408, 5121, (IntBuffer)null);
             OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, this.framebufferObject);

@@ -19,13 +19,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.src.Config;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.EnumSkyBlock;
+import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
@@ -67,6 +73,10 @@ public class SoundManager
     private final Map<String, Integer> playingSoundsStopTime;
     private final List<ISoundEventListener> listeners;
     private final List<String> pausedChannels;
+    private final Set<ISound> soundPhysicsEchoes = Sets.<ISound>newHashSet();
+    private final BlockPos.MutableBlockPos soundProbePos = new BlockPos.MutableBlockPos();
+    private float cachedCaveReverb = 0.0F;
+    private float cachedEnclosureDensity = 0.0F;
 
     public SoundManager(SoundHandler p_i45119_1_, GameSettings p_i45119_2_)
     {
@@ -227,6 +237,7 @@ public class SoundManager
             this.tickableSounds.clear();
             this.categorySounds.clear();
             this.playingSoundsStopTime.clear();
+            this.soundPhysicsEchoes.clear();
         }
     }
 
@@ -243,6 +254,11 @@ public class SoundManager
     public void updateAllSounds()
     {
         ++this.playTime;
+
+        if (this.playTime % 10 == 0 && Config.isSoundPhysics())
+        {
+            this.updateSoundPhysicsEnvironment();
+        }
 
         for (ITickableSound itickablesound : this.tickableSounds)
         {
@@ -286,6 +302,7 @@ public class SoundManager
                     LOGGER.debug(LOG_MARKER, "Removed channel {} because it's not playing anymore", (Object)s1);
                     this.sndSystem.removeSource(s1);
                     this.playingSoundsStopTime.remove(s1);
+                    this.soundPhysicsEchoes.remove(isound);
 
                     try
                     {
@@ -446,6 +463,16 @@ public class SoundManager
                             {
                                 this.tickableSounds.add((ITickableSound)p_sound);
                             }
+
+                            if (Config.isSoundPhysics() && this.cachedCaveReverb > 0.32F && !this.soundPhysicsEchoes.contains(p_sound) && this.isPositionalWorldSound(p_sound) && !p_sound.canRepeat() && f1 >= 0.18F && this.delayedSounds.size() < 24)
+                            {
+                                float echoVolume = MathHelper.clamp(p_sound.getVolume() * this.cachedCaveReverb * 0.30F, 0.04F, 0.42F);
+                                float echoPitch = MathHelper.clamp(p_sound.getPitch() * (0.93F - this.cachedCaveReverb * 0.04F), 0.5F, 2.0F);
+                                PositionedSoundRecord echoSound = new PositionedSoundRecord(p_sound.getSoundLocation(), soundcategory, echoVolume, echoPitch, false, 0, p_sound.getAttenuationType(), p_sound.getXPosF(), p_sound.getYPosF(), p_sound.getZPosF());
+                                this.soundPhysicsEchoes.add(echoSound);
+                                int echoDelay = 3 + Math.round(this.cachedCaveReverb * 4.0F);
+                                this.delayedSounds.put(echoSound, Integer.valueOf(this.playTime + echoDelay));
+                            }
                         }
                     }
                 }
@@ -453,14 +480,176 @@ public class SoundManager
         }
     }
 
+    private boolean isPositionalWorldSound(ISound soundIn)
+    {
+        if (soundIn == null || soundIn.getAttenuationType() == ISound.AttenuationType.NONE)
+        {
+            return false;
+        }
+
+        SoundCategory cat = soundIn.getCategory();
+        return cat != SoundCategory.MASTER && cat != SoundCategory.MUSIC && cat != SoundCategory.RECORDS;
+    }
+
+    private void updateSoundPhysicsEnvironment()
+    {
+        Minecraft mc = Minecraft.getMinecraft();
+
+        if (mc == null || mc.world == null || mc.player == null)
+        {
+            this.cachedCaveReverb = 0.0F;
+            this.cachedEnclosureDensity = 0.0F;
+            return;
+        }
+
+        World world = mc.world;
+        int px = MathHelper.floor(mc.player.posX);
+        int py = MathHelper.floor(mc.player.posY + (double)mc.player.getEyeHeight());
+        int pz = MathHelper.floor(mc.player.posZ);
+        this.soundProbePos.setPos(px, py, pz);
+        int skyLight = world.getLightFor(EnumSkyBlock.SKY, this.soundProbePos);
+
+        int enclosedDirections = 0;
+        float reflectivitySum = 0.0F;
+        int[][] dirs = new int[][] {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+
+        for (int d = 0; d < dirs.length; ++d)
+        {
+            int dx = dirs[d][0];
+            int dy = dirs[d][1];
+            int dz = dirs[d][2];
+
+            for (int step = 1; step <= 8; ++step)
+            {
+                this.soundProbePos.setPos(px + dx * step, py + dy * step, pz + dz * step);
+                IBlockState state = world.getBlockState(this.soundProbePos);
+
+                if (state.isOpaqueCube())
+                {
+                    ++enclosedDirections;
+                    Material mat = state.getMaterial();
+
+                    if (mat == Material.ROCK || mat == Material.IRON || mat == Material.ANVIL || mat == Material.ICE)
+                    {
+                        reflectivitySum += 1.0F;
+                    }
+                    else if (mat == Material.CLOTH || mat == Material.LEAVES || mat == Material.PLANTS || mat == Material.SNOW || mat == Material.SPONGE)
+                    {
+                        reflectivitySum += 0.2F;
+                    }
+                    else
+                    {
+                        reflectivitySum += 0.55F;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        this.cachedEnclosureDensity = (float)enclosedDirections / 6.0F;
+        float avgReflectivity = enclosedDirections > 0 ? reflectivitySum / (float)enclosedDirections : 0.0F;
+        float skyFactor = 1.0F - (float)skyLight / 15.0F;
+        this.cachedCaveReverb = MathHelper.clamp(this.cachedEnclosureDensity * avgReflectivity * (0.45F + 0.55F * skyFactor), 0.0F, 1.0F);
+    }
+
+    private int countWallOcclusion(ISound soundIn)
+    {
+        Minecraft mc = Minecraft.getMinecraft();
+
+        if (mc == null || mc.world == null || mc.player == null)
+        {
+            return 0;
+        }
+
+        double lx = mc.player.posX;
+        double ly = mc.player.posY + (double)mc.player.getEyeHeight();
+        double lz = mc.player.posZ;
+        double sx = (double)soundIn.getXPosF();
+        double sy = (double)soundIn.getYPosF();
+        double sz = (double)soundIn.getZPosF();
+        double dx = sx - lx;
+        double dy = sy - ly;
+        double dz = sz - lz;
+        double distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq < 2.25D || distSq > 4096.0D)
+        {
+            return 0;
+        }
+
+        World world = mc.world;
+        int occluded = 0;
+
+        for (int step = 1; step <= 4; ++step)
+        {
+            double t = (double)step * 0.2D;
+            this.soundProbePos.setPos(lx + dx * t, ly + dy * t, lz + dz * t);
+
+            if (world.getBlockState(this.soundProbePos).isOpaqueCube())
+            {
+                ++occluded;
+            }
+        }
+
+        return occluded;
+    }
+
     private float getClampedPitch(ISound soundIn)
     {
-        return MathHelper.clamp(soundIn.getPitch(), 0.5F, 2.0F);
+        float pitch = soundIn.getPitch();
+
+        if (Config.isSoundPhysics() && this.isPositionalWorldSound(soundIn))
+        {
+            int occluded = this.countWallOcclusion(soundIn);
+
+            if (occluded > 0)
+            {
+                pitch *= 1.0F - (float)occluded * 0.055F;
+            }
+
+            if (this.cachedCaveReverb > 0.25F)
+            {
+                pitch *= 1.0F - this.cachedCaveReverb * 0.035F;
+            }
+
+            Minecraft mc = Minecraft.getMinecraft();
+
+            if (mc != null && mc.player != null && mc.player.isInsideOfMaterial(Material.WATER))
+            {
+                pitch *= 0.78F;
+            }
+        }
+
+        return MathHelper.clamp(pitch, 0.5F, 2.0F);
     }
 
     private float getClampedVolume(ISound soundIn)
     {
-        return MathHelper.clamp(soundIn.getVolume() * this.getVolume(soundIn.getCategory()), 0.0F, 1.0F);
+        float vol = soundIn.getVolume() * this.getVolume(soundIn.getCategory());
+
+        if (Config.isSoundPhysics() && this.isPositionalWorldSound(soundIn))
+        {
+            int occluded = this.countWallOcclusion(soundIn);
+
+            if (occluded > 0)
+            {
+                vol *= 1.0F / (1.0F + (float)occluded * 0.55F);
+            }
+            else if (this.cachedCaveReverb > 0.25F)
+            {
+                vol *= 1.0F + this.cachedCaveReverb * 0.14F;
+            }
+
+            Minecraft mc = Minecraft.getMinecraft();
+
+            if (mc != null && mc.player != null && mc.player.isInsideOfMaterial(Material.WATER))
+            {
+                vol *= 0.65F;
+            }
+        }
+
+        return MathHelper.clamp(vol, 0.0F, 1.0F);
     }
 
     /**

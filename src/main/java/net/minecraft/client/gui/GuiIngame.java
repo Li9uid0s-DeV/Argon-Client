@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import javax.annotation.Nullable;
+import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -34,8 +36,10 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
 import net.minecraft.init.MobEffects;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
@@ -46,7 +50,9 @@ import net.minecraft.scoreboard.Score;
 import net.minecraft.scoreboard.ScoreObjective;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.src.ArgonWaypointManager;
 import net.minecraft.src.Config;
+import net.minecraft.src.ArgonVoiceChatManager;
 import net.minecraft.src.CustomColors;
 import net.minecraft.src.CustomItems;
 import net.minecraft.src.Reflector;
@@ -125,6 +131,34 @@ public class GuiIngame extends Gui
     /** Used with updateCounter to make the heart bar flash */
     private long healthUpdateCounter;
     private final Map<ChatType, List<IChatListener>> chatListeners = Maps.<ChatType, List<IChatListener>>newHashMap();
+    private static final String ARGON_HUD_TITLE = "\u00a7bArgon Client \u00a791.12.2";
+    private int lastHudFps = -1;
+    private int lastHudX = Integer.MIN_VALUE;
+    private int lastHudY = Integer.MIN_VALUE;
+    private int lastHudZ = Integer.MIN_VALUE;
+    private String cachedFpsLine = "";
+    private String cachedXyzLine = "";
+    private int cachedHudBoxWidth = 0;
+    private IBlockState lastJadeState = null;
+    private BlockPos lastJadePos = null;
+    private Item lastJadeHeldItem = null;
+    private String cachedJadeTitle = "";
+    private String cachedJadeSub = "";
+    private ItemStack cachedJadeIcon = ItemStack.EMPTY;
+    private ItemStack probePickaxe = ItemStack.EMPTY;
+    private ItemStack probeAxe = ItemStack.EMPTY;
+    private ItemStack probeShovel = ItemStack.EMPTY;
+    private ItemStack probeShears = ItemStack.EMPTY;
+    private ItemStack probeSword = ItemStack.EMPTY;
+    private static final int MINIMAP_RADIUS = 32;
+    private static final int MINIMAP_DIAMETER = 64;
+    private DynamicTexture minimapTexture = null;
+    private ResourceLocation minimapTextureLocation = null;
+    private int minimapFrameCounter = 0;
+    private int lastMinimapScanX = Integer.MIN_VALUE;
+    private int lastMinimapScanZ = Integer.MIN_VALUE;
+    private int lastMinimapDimension = Integer.MIN_VALUE;
+    private final BlockPos.MutableBlockPos minimapMutablePos = new BlockPos.MutableBlockPos();
 
     public GuiIngame(Minecraft mcIn)
     {
@@ -177,6 +211,11 @@ public class GuiIngame extends Gui
         {
             GlStateManager.enableDepth();
             GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        }
+
+        if (Config.isEnhancedVisuals())
+        {
+            this.renderEnhancedVisuals(scaledresolution, partialTicks);
         }
 
         ItemStack itemstack = this.mc.player.inventory.armorItemInSlot(3);
@@ -275,6 +314,10 @@ public class GuiIngame extends Gui
         if (this.mc.gameSettings.showDebugInfo)
         {
             this.overlayDebug.renderDebugInfo(scaledresolution);
+        }
+        else
+        {
+            this.renderArgonHud(scaledresolution, fontrenderer);
         }
 
         if (this.overlayMessageTime > 0)
@@ -1201,6 +1244,157 @@ public class GuiIngame extends Gui
         }
     }
 
+    private void renderEnhancedVisuals(ScaledResolution scaledRes, float partialTicks)
+    {
+        if (this.mc.player == null)
+        {
+            return;
+        }
+
+        float dmgIntensity = this.mc.player.prevEnhancedDamageIntensity + (this.mc.player.enhancedDamageIntensity - this.mc.player.prevEnhancedDamageIntensity) * partialTicks;
+        float expIntensity = this.mc.player.prevEnhancedExplosionIntensity + (this.mc.player.enhancedExplosionIntensity - this.mc.player.prevEnhancedExplosionIntensity) * partialTicks;
+        dmgIntensity = MathHelper.clamp(dmgIntensity, 0.0F, 1.0F);
+        expIntensity = MathHelper.clamp(expIntensity, 0.0F, 1.0F);
+
+        if (dmgIntensity <= 0.005F && expIntensity <= 0.005F)
+        {
+            return;
+        }
+
+        double width = scaledRes.getScaledWidth_double();
+        double height = scaledRes.getScaledHeight_double();
+        float time = ((float)this.mc.player.ticksExisted + partialTicks) * 0.65F;
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder bufferbuilder = tessellator.getBuffer();
+
+        GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
+        GlStateManager.disableAlpha();
+        GlStateManager.enableBlend();
+
+        float blurStrength = MathHelper.clamp(expIntensity * 0.9F + Math.max(0.0F, dmgIntensity - 0.25F) * 0.45F, 0.0F, 1.0F);
+
+        if (blurStrength > 0.01F && OpenGlHelper.isFramebufferEnabled() && this.mc.getFramebuffer() != null)
+        {
+            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+            this.mc.getFramebuffer().bindFramebufferTexture();
+
+            double offset1X = (double)(MathHelper.sin(time * 2.4F) * 6.5F * blurStrength);
+            double offset1Y = (double)(MathHelper.cos(time * 2.9F) * 5.0F * blurStrength);
+            GlStateManager.color(1.0F, 0.92F, 0.92F, 0.36F * blurStrength);
+            bufferbuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+            bufferbuilder.pos(offset1X, height + offset1Y, -90.0D).tex(0.0D, 0.0D).endVertex();
+            bufferbuilder.pos(width + offset1X, height + offset1Y, -90.0D).tex(1.0D, 0.0D).endVertex();
+            bufferbuilder.pos(width + offset1X, offset1Y, -90.0D).tex(1.0D, 1.0D).endVertex();
+            bufferbuilder.pos(offset1X, offset1Y, -90.0D).tex(0.0D, 1.0D).endVertex();
+            tessellator.draw();
+
+            double offset2X = -offset1X * 0.85D;
+            double offset2Y = -offset1Y * 0.85D;
+            GlStateManager.color(1.0F, 0.86F, 0.86F, 0.26F * blurStrength);
+            bufferbuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+            bufferbuilder.pos(offset2X, height + offset2Y, -90.0D).tex(0.0D, 0.0D).endVertex();
+            bufferbuilder.pos(width + offset2X, height + offset2Y, -90.0D).tex(1.0D, 0.0D).endVertex();
+            bufferbuilder.pos(width + offset2X, offset2Y, -90.0D).tex(1.0D, 1.0D).endVertex();
+            bufferbuilder.pos(offset2X, offset2Y, -90.0D).tex(0.0D, 1.0D).endVertex();
+            tessellator.draw();
+        }
+
+        float vignettePower = MathHelper.clamp(dmgIntensity * 0.92F + expIntensity * 0.45F, 0.0F, 0.95F);
+
+        if (vignettePower > 0.01F)
+        {
+            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+            GlStateManager.color(0.0F, vignettePower, vignettePower, 1.0F);
+            this.mc.getTextureManager().bindTexture(VIGNETTE_TEX_PATH);
+            bufferbuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+            bufferbuilder.pos(0.0D, height, -90.0D).tex(0.0D, 1.0D).endVertex();
+            bufferbuilder.pos(width, height, -90.0D).tex(1.0D, 1.0D).endVertex();
+            bufferbuilder.pos(width, 0.0D, -90.0D).tex(1.0D, 0.0D).endVertex();
+            bufferbuilder.pos(0.0D, 0.0D, -90.0D).tex(0.0D, 0.0D).endVertex();
+            tessellator.draw();
+
+            GlStateManager.disableTexture2D();
+            GlStateManager.shadeModel(7425);
+            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+            float borderAlpha = MathHelper.clamp(vignettePower * 0.58F, 0.0F, 0.65F);
+            double borderW = Math.min(width, height) * (0.14D + (double)vignettePower * 0.10D);
+
+            bufferbuilder.begin(7, DefaultVertexFormats.POSITION_COLOR);
+            // Top edge blood gradient
+            bufferbuilder.pos(0.0D, borderW, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(width, borderW, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(width, 0.0D, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(0.0D, 0.0D, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            // Bottom edge blood gradient
+            bufferbuilder.pos(0.0D, height, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(width, height, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(width, height - borderW, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(0.0D, height - borderW, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            // Left edge blood gradient
+            bufferbuilder.pos(0.0D, height, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(borderW, height, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(borderW, 0.0D, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(0.0D, 0.0D, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            // Right edge blood gradient
+            bufferbuilder.pos(width - borderW, height, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+            bufferbuilder.pos(width, height, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(width, 0.0D, -90.0D).color(0.55F, 0.0F, 0.0F, borderAlpha).endVertex();
+            bufferbuilder.pos(width - borderW, 0.0D, -90.0D).color(0.65F, 0.02F, 0.02F, 0.0F).endVertex();
+
+            // Blood-splatter droplets around screen perimeter
+            int seed = this.mc.player.enhancedVisualsSeed;
+            float splatterAlpha = MathHelper.clamp(vignettePower * 0.52F, 0.0F, 0.6F);
+
+            for (int idx = 0; idx < 12; ++idx)
+            {
+                int hash = (seed + idx * 7919) * 1103515245 + 12345;
+                float normA = (float)((hash >>> 8) & 255) / 255.0F;
+                float normB = (float)((hash >>> 16) & 255) / 255.0F;
+                double dropRadius = 6.0D + (double)((hash >>> 24) & 15) * 1.4D * (double)vignettePower;
+                double cx;
+                double cy;
+                int edge = idx & 3;
+
+                if (edge == 0)
+                {
+                    cx = normA * width;
+                    cy = normB * borderW * 0.85D;
+                }
+                else if (edge == 1)
+                {
+                    cx = normA * width;
+                    cy = height - normB * borderW * 0.85D;
+                }
+                else if (edge == 2)
+                {
+                    cx = normB * borderW * 0.85D;
+                    cy = normA * height;
+                }
+                else
+                {
+                    cx = width - normB * borderW * 0.85D;
+                    cy = normA * height;
+                }
+
+                bufferbuilder.pos(cx, cy + dropRadius, -90.0D).color(0.48F, 0.0F, 0.0F, splatterAlpha * 0.85F).endVertex();
+                bufferbuilder.pos(cx + dropRadius, cy, -90.0D).color(0.58F, 0.02F, 0.02F, splatterAlpha * 0.7F).endVertex();
+                bufferbuilder.pos(cx, cy - dropRadius, -90.0D).color(0.48F, 0.0F, 0.0F, splatterAlpha * 0.85F).endVertex();
+                bufferbuilder.pos(cx - dropRadius, cy, -90.0D).color(0.58F, 0.02F, 0.02F, splatterAlpha * 0.7F).endVertex();
+            }
+
+            tessellator.draw();
+            GlStateManager.shadeModel(7424);
+            GlStateManager.enableTexture2D();
+        }
+
+        GlStateManager.depthMask(true);
+        GlStateManager.enableDepth();
+        GlStateManager.enableAlpha();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+    }
+
     private void renderPortal(float timeInPortal, ScaledResolution scaledRes)
     {
         if (timeInPortal < 1.0F)
@@ -1421,5 +1615,607 @@ public class GuiIngame extends Gui
     public GuiBossOverlay getBossOverlay()
     {
         return this.overlayBoss;
+    }
+
+    private int getArgonHudScaleFactor()
+    {
+        int width = Math.max(1, this.mc.displayWidth);
+        int height = Math.max(1, this.mc.displayHeight);
+        int factor = 1;
+
+        while (factor < 2 && width / (factor + 1) >= 320 && height / (factor + 1) >= 240)
+        {
+            ++factor;
+        }
+
+        if (width >= 1920 && height >= 1080 && width / 3 >= 320 && height / 3 >= 240)
+        {
+            factor = 3;
+        }
+
+        if (this.mc.isUnicode() && factor % 2 != 0 && factor != 1)
+        {
+            --factor;
+        }
+
+        return Math.max(1, factor);
+    }
+
+    private void renderArgonHud(ScaledResolution scaledRes, FontRenderer fontRenderer)
+    {
+        Entity viewEntity = this.mc.getRenderViewEntity();
+
+        if (viewEntity == null)
+        {
+            viewEntity = this.mc.player;
+        }
+
+        if (viewEntity == null || fontRenderer == null)
+        {
+            return;
+        }
+
+        this.mc.mcProfiler.startSection("argonHud");
+        int fps = Minecraft.getDebugFPS();
+        int posX = MathHelper.floor(viewEntity.posX);
+        int posY = MathHelper.floor(viewEntity.getEntityBoundingBox().minY);
+        int posZ = MathHelper.floor(viewEntity.posZ);
+        boolean dirty = false;
+
+        if (fps != this.lastHudFps)
+        {
+            this.lastHudFps = fps;
+            this.cachedFpsLine = "\u00a79[\u00a7bFPS\u00a79] \u00a7f" + fps + " fps";
+            dirty = true;
+        }
+
+        if (posX != this.lastHudX || posY != this.lastHudY || posZ != this.lastHudZ)
+        {
+            this.lastHudX = posX;
+            this.lastHudY = posY;
+            this.lastHudZ = posZ;
+            this.cachedXyzLine = "\u00a79[\u00a7bXYZ\u00a79] \u00a7f" + posX + "\u00a77, \u00a7f" + posY + "\u00a77, \u00a7f" + posZ;
+            dirty = true;
+        }
+
+        if (dirty || this.cachedHudBoxWidth <= 0)
+        {
+            int titleWidth = fontRenderer.getStringWidth(ARGON_HUD_TITLE);
+            int fpsWidth = fontRenderer.getStringWidth(this.cachedFpsLine);
+            int xyzWidth = fontRenderer.getStringWidth(this.cachedXyzLine);
+            this.cachedHudBoxWidth = Math.max(titleWidth, Math.max(fpsWidth, xyzWidth)) + 10;
+        }
+
+        int hudScaleFactor = this.getArgonHudScaleFactor();
+        double hudWidth = (double)Math.max(1, this.mc.displayWidth) / (double)hudScaleFactor;
+        double hudHeight = (double)Math.max(1, this.mc.displayHeight) / (double)hudScaleFactor;
+
+        int x = 4;
+        int y = 4;
+
+        if (this.mc.gameSettings.ofShowFps)
+        {
+            int ofFpsBottom = MathHelper.ceil(13.0F * (float)Math.max(1, scaledRes.getScaleFactor()) / (float)hudScaleFactor);
+            y = Math.max(14, ofFpsBottom);
+        }
+
+        int lineHeight = fontRenderer.FONT_HEIGHT + 2;
+        int boxHeight = lineHeight * 3 + 4;
+
+        GlStateManager.matrixMode(5889);
+        GlStateManager.pushMatrix();
+        GlStateManager.loadIdentity();
+        GlStateManager.ortho(0.0D, hudWidth, hudHeight, 0.0D, 1000.0D, 3000.0D);
+        GlStateManager.matrixMode(5888);
+        GlStateManager.pushMatrix();
+        GlStateManager.loadIdentity();
+        GlStateManager.translate(0.0F, 0.0F, -2000.0F);
+
+        drawRect(x, y, x + this.cachedHudBoxWidth, y + boxHeight, 0x66000000);
+        drawRect(x, y, x + 2, y + boxHeight, 0xCC3399FF);
+
+        fontRenderer.drawStringWithShadow(ARGON_HUD_TITLE, (float)(x + 5), (float)(y + 3), 0xFFFFFF);
+        fontRenderer.drawStringWithShadow(this.cachedFpsLine, (float)(x + 5), (float)(y + 3 + lineHeight), 0xFFFFFF);
+        fontRenderer.drawStringWithShadow(this.cachedXyzLine, (float)(x + 5), (float)(y + 3 + lineHeight * 2), 0xFFFFFF);
+
+        if (Config.isJadeHud())
+        {
+            this.renderJadeHud(hudWidth, hudHeight, fontRenderer);
+        }
+
+        if (Config.isMinimap())
+        {
+            this.renderMinimapHud(hudWidth, hudHeight, viewEntity, fontRenderer);
+        }
+
+        if (Config.isVoiceChat())
+        {
+            this.renderVoiceChatHud(hudWidth, hudHeight, fontRenderer);
+        }
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.matrixMode(5889);
+        GlStateManager.popMatrix();
+        GlStateManager.matrixMode(5888);
+        GlStateManager.popMatrix();
+        this.mc.mcProfiler.endSection();
+    }
+
+    private void renderJadeHud(double hudWidth, double hudHeight, FontRenderer fontRenderer)
+    {
+        RayTraceResult ray = this.mc.getObjectMouseOver();
+
+        if (ray == null || ray.typeOfHit == RayTraceResult.Type.MISS || this.mc.world == null || this.mc.player == null)
+        {
+            return;
+        }
+
+        String titleLine = null;
+        String subLine = null;
+        ItemStack iconStack = ItemStack.EMPTY;
+        float healthRatio = -1.0F;
+
+        if (ray.typeOfHit == RayTraceResult.Type.ENTITY && ray.entityHit != null)
+        {
+            Entity target = ray.entityHit;
+
+            if (target instanceof EntityItem)
+            {
+                ItemStack dropStack = ((EntityItem)target).getItem();
+
+                if (!dropStack.isEmpty())
+                {
+                    iconStack = dropStack;
+                    titleLine = "\u00a7f" + dropStack.getDisplayName() + (dropStack.getCount() > 1 ? " \u00a7bx" + dropStack.getCount() : "");
+                    subLine = "\u00a77Dropped Item";
+                }
+            }
+            else
+            {
+                titleLine = "\u00a7f" + target.getDisplayName().getFormattedText();
+
+                if (target instanceof EntityLivingBase)
+                {
+                    EntityLivingBase living = (EntityLivingBase)target;
+                    float hp = Math.max(0.0F, living.getHealth());
+                    float maxHp = Math.max(1.0F, living.getMaxHealth());
+                    healthRatio = MathHelper.clamp(hp / maxHp, 0.0F, 1.0F);
+                    int hpInt = MathHelper.ceil(hp);
+                    int maxHpInt = MathHelper.ceil(maxHp);
+                    subLine = "\u00a7c\u2764 \u00a7f" + hpInt + " \u00a77/ \u00a7f" + maxHpInt + " HP";
+                }
+                else
+                {
+                    subLine = "\u00a77Entity";
+                }
+            }
+        }
+        else if (ray.typeOfHit == RayTraceResult.Type.BLOCK && ray.getBlockPos() != null)
+        {
+            BlockPos pos = ray.getBlockPos();
+            IBlockState state = this.mc.world.getBlockState(pos);
+
+            if (state.getMaterial() == Material.AIR)
+            {
+                return;
+            }
+
+            Item heldItem = this.mc.player.getHeldItemMainhand().getItem();
+
+            if (state != this.lastJadeState || !pos.equals(this.lastJadePos) || heldItem != this.lastJadeHeldItem)
+            {
+                this.lastJadeState = state;
+                this.lastJadePos = pos;
+                this.lastJadeHeldItem = heldItem;
+                Block block = state.getBlock();
+
+                try
+                {
+                    this.cachedJadeIcon = block.getItem(this.mc.world, pos, state);
+                }
+                catch (Throwable var18)
+                {
+                    this.cachedJadeIcon = ItemStack.EMPTY;
+                }
+
+                if (!this.cachedJadeIcon.isEmpty())
+                {
+                    this.cachedJadeTitle = "\u00a7f" + this.cachedJadeIcon.getDisplayName();
+                }
+                else
+                {
+                    this.cachedJadeTitle = "\u00a7f" + block.getLocalizedName();
+                }
+
+                this.cachedJadeSub = this.computeJadeToolInfo(state, pos);
+            }
+
+            titleLine = this.cachedJadeTitle;
+            subLine = this.cachedJadeSub;
+            iconStack = this.cachedJadeIcon;
+        }
+
+        if (titleLine == null || subLine == null)
+        {
+            return;
+        }
+
+        boolean hasIcon = !iconStack.isEmpty();
+        int iconPad = hasIcon ? 20 : 0;
+        int textWidth = Math.max(fontRenderer.getStringWidth(titleLine), fontRenderer.getStringWidth(subLine));
+        int boxWidth = Math.max(88, textWidth + iconPad + 12);
+        int lineHeight = fontRenderer.FONT_HEIGHT + 2;
+        int boxHeight = lineHeight * 2 + (healthRatio >= 0.0F ? 8 : 4);
+        int boxX = (int)(hudWidth / 2.0D) - boxWidth / 2;
+        int boxY = 5;
+
+        drawRect(boxX - 1, boxY - 1, boxX + boxWidth + 1, boxY + boxHeight + 1, 0x44000000);
+        drawRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0x88000000);
+        drawRect(boxX, boxY, boxX + boxWidth, boxY + 2, 0xCC3399FF);
+
+        int textX = boxX + 5 + iconPad;
+        fontRenderer.drawStringWithShadow(titleLine, (float)textX, (float)(boxY + 4), 0xFFFFFF);
+        fontRenderer.drawStringWithShadow(subLine, (float)textX, (float)(boxY + 4 + lineHeight), 0xCCCCCC);
+
+        if (healthRatio >= 0.0F)
+        {
+            int barX = boxX + 5;
+            int barY = boxY + boxHeight - 5;
+            int barW = boxWidth - 10;
+            int fillW = (int)((float)barW * healthRatio);
+            int barColor = healthRatio > 0.5F ? 0xFF33CC66 : (healthRatio > 0.25F ? 0xFFCCAA22 : 0xFFDD3344);
+            drawRect(barX, barY, barX + barW, barY + 3, 0x88220000);
+
+            if (fillW > 0)
+            {
+                drawRect(barX, barY, barX + fillW, barY + 3, barColor);
+            }
+        }
+
+        if (hasIcon)
+        {
+            GlStateManager.pushMatrix();
+            GlStateManager.enableDepth();
+            RenderHelper.enableGUIStandardItemLighting();
+            this.itemRenderer.renderItemAndEffectIntoGUI(iconStack, boxX + 4, boxY + (boxHeight - 16) / 2 + 1);
+            RenderHelper.disableStandardItemLighting();
+            GlStateManager.disableLighting();
+            GlStateManager.disableDepth();
+            GlStateManager.enableBlend();
+            GlStateManager.popMatrix();
+        }
+    }
+
+    private String computeJadeToolInfo(IBlockState state, BlockPos pos)
+    {
+        float hardness = state.getBlockHardness(this.mc.world, pos);
+
+        if (hardness < 0.0F)
+        {
+            return "\u00a7c\u2716 \u00a77Tool: \u00a7cUnbreakable";
+        }
+
+        if (this.probePickaxe.isEmpty())
+        {
+            this.probePickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
+            this.probeAxe = new ItemStack(Items.DIAMOND_AXE);
+            this.probeShovel = new ItemStack(Items.DIAMOND_SHOVEL);
+            this.probeShears = new ItemStack(Items.SHEARS);
+            this.probeSword = new ItemStack(Items.DIAMOND_SWORD);
+        }
+
+        Block block = state.getBlock();
+        float pickStr = Items.DIAMOND_PICKAXE.getStrVsBlock(this.probePickaxe, state);
+        float axeStr = Items.DIAMOND_AXE.getStrVsBlock(this.probeAxe, state);
+        float shovelStr = Items.DIAMOND_SHOVEL.getStrVsBlock(this.probeShovel, state);
+        float shearsStr = Items.SHEARS.getStrVsBlock(this.probeShears, state);
+        float swordStr = Items.DIAMOND_SWORD.getStrVsBlock(this.probeSword, state);
+
+        String bestTool = "Any";
+
+        if (pickStr > 1.0F || Items.DIAMOND_PICKAXE.canHarvestBlock(state))
+        {
+            if (!state.getMaterial().isToolNotRequired())
+            {
+                if (Items.WOODEN_PICKAXE.canHarvestBlock(state))
+                {
+                    bestTool = "Pickaxe (Wood+)";
+                }
+                else if (Items.STONE_PICKAXE.canHarvestBlock(state))
+                {
+                    bestTool = "Pickaxe (Stone+)";
+                }
+                else if (Items.IRON_PICKAXE.canHarvestBlock(state))
+                {
+                    bestTool = "Pickaxe (Iron+)";
+                }
+                else
+                {
+                    bestTool = "Pickaxe (Diamond)";
+                }
+            }
+            else
+            {
+                bestTool = "Pickaxe";
+            }
+        }
+        else if (axeStr > 1.0F)
+        {
+            bestTool = "Axe";
+        }
+        else if (shovelStr > 1.0F || Items.DIAMOND_SHOVEL.canHarvestBlock(state))
+        {
+            bestTool = "Shovel";
+        }
+        else if (shearsStr > 1.0F || Items.SHEARS.canHarvestBlock(state))
+        {
+            bestTool = "Shears";
+        }
+        else if (swordStr > 1.5F || block == Blocks.WEB)
+        {
+            bestTool = "Sword";
+        }
+
+        boolean canHarvest = this.mc.player.canHarvestBlock(state);
+        String prefix = canHarvest ? "\u00a7a\u2714 " : "\u00a7c\u2716 ";
+        return prefix + "\u00a77Tool: \u00a7b" + bestTool;
+    }
+
+    private void renderMinimapHud(double hudWidth, double hudHeight, Entity viewEntity, FontRenderer fontRenderer)
+    {
+        if (this.mc.world == null || viewEntity == null)
+        {
+            return;
+        }
+
+        if (this.minimapTexture == null)
+        {
+            this.minimapTexture = new DynamicTexture(MINIMAP_DIAMETER, MINIMAP_DIAMETER);
+            this.minimapTextureLocation = this.mc.getTextureManager().getDynamicTextureLocation("argon_minimap", this.minimapTexture);
+        }
+
+        int centerX = MathHelper.floor(viewEntity.posX);
+        int centerY = MathHelper.floor(viewEntity.getEntityBoundingBox().minY);
+        int centerZ = MathHelper.floor(viewEntity.posZ);
+        int currentDim = viewEntity.dimension;
+        ++this.minimapFrameCounter;
+
+        boolean movedEnough = Math.abs(centerX - this.lastMinimapScanX) >= 2 || Math.abs(centerZ - this.lastMinimapScanZ) >= 2;
+
+        if (this.minimapFrameCounter >= 10 || movedEnough || currentDim != this.lastMinimapDimension)
+        {
+            this.minimapFrameCounter = 0;
+            this.lastMinimapScanX = centerX;
+            this.lastMinimapScanZ = centerZ;
+            this.lastMinimapDimension = currentDim;
+            int[] pixels = this.minimapTexture.getTextureData();
+            this.mc.world.scanMinimapColors(centerX, centerY, centerZ, MINIMAP_RADIUS, pixels, this.minimapMutablePos);
+            this.minimapTexture.updateDynamicTexture();
+        }
+
+        int mapSize = 68;
+        int mapX = (int)hudWidth - mapSize - 6;
+        int mapY = 6;
+
+        if (this.mc.player != null && !this.mc.player.getActivePotionEffects().isEmpty())
+        {
+            mapY = 30;
+        }
+
+        // Background frame & Argon accent header
+        drawRect(mapX - 3, mapY - 3, mapX + mapSize + 3, mapY + mapSize + 14, 0x77000000);
+        drawRect(mapX - 3, mapY - 3, mapX + mapSize + 3, mapY - 1, 0xCC3399FF);
+        drawRect(mapX - 1, mapY - 1, mapX + mapSize + 1, mapY + mapSize + 1, 0xFF0B0F19);
+
+        // Draw cached 64x64 surface terrain texture in 1 quad
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        this.mc.getTextureManager().bindTexture(this.minimapTextureLocation);
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+        buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
+        buffer.pos((double)mapX, (double)(mapY + mapSize), 0.0D).tex(0.0D, 1.0D).endVertex();
+        buffer.pos((double)(mapX + mapSize), (double)(mapY + mapSize), 0.0D).tex(1.0D, 1.0D).endVertex();
+        buffer.pos((double)(mapX + mapSize), (double)mapY, 0.0D).tex(1.0D, 0.0D).endVertex();
+        buffer.pos((double)mapX, (double)mapY, 0.0D).tex(0.0D, 0.0D).endVertex();
+        tessellator.draw();
+
+        int mapCenterX = mapX + mapSize / 2;
+        int mapCenterY = mapY + mapSize / 2;
+
+        // Subtle crosshair grid lines
+        drawRect(mapCenterX, mapY, mapCenterX + 1, mapY + mapSize, 0x22FFFFFF);
+        drawRect(mapX, mapCenterY, mapX + mapSize, mapCenterY + 1, 0x22FFFFFF);
+
+        // Render Waypoint Pins (座標ピン)
+        List<ArgonWaypointManager.Waypoint> waypoints = ArgonWaypointManager.getWaypoints();
+        double scale = (double)mapSize / (double)MINIMAP_DIAMETER;
+        double halfSpan = (double)(mapSize / 2 - 3);
+        ArgonWaypointManager.Waypoint nearestWp = null;
+        int nearestDist = Integer.MAX_VALUE;
+
+        for (int i = 0; i < waypoints.size(); ++i)
+        {
+            ArgonWaypointManager.Waypoint wp = waypoints.get(i);
+
+            if (!wp.enabled || wp.dimension != currentDim)
+            {
+                continue;
+            }
+
+            double dx = ((double)wp.x + 0.5D) - viewEntity.posX;
+            double dz = ((double)wp.z + 0.5D) - viewEntity.posZ;
+            int distBlocks = MathHelper.floor(Math.sqrt(dx * dx + dz * dz));
+
+            if (distBlocks < nearestDist)
+            {
+                nearestDist = distBlocks;
+                nearestWp = wp;
+            }
+
+            double px = dx * scale;
+            double pz = dz * scale;
+            double maxAbs = Math.max(Math.abs(px), Math.abs(pz));
+            boolean clamped = false;
+
+            if (maxAbs > halfSpan && maxAbs > 0.001D)
+            {
+                px = px / maxAbs * halfSpan;
+                pz = pz / maxAbs * halfSpan;
+                clamped = true;
+            }
+
+            int pinX = mapCenterX + MathHelper.floor(px + 0.5D);
+            int pinY = mapCenterY + MathHelper.floor(pz + 0.5D);
+
+            drawRect(pinX - 2, pinY - 2, pinX + 3, pinY + 3, 0xDD000000);
+            drawRect(pinX - 1, pinY - 1, pinX + 2, pinY + 2, wp.color);
+
+            if (!clamped && wp.name != null && !wp.name.isEmpty())
+            {
+                String shortLabel = wp.name.length() > 8 ? wp.name.substring(0, 8) : wp.name;
+                int lw = fontRenderer.getStringWidth(shortLabel);
+                int lx = MathHelper.clamp(pinX - lw / 2, mapX + 2, mapX + mapSize - lw - 2);
+                int ly = pinY - 10 < mapY + 2 ? pinY + 4 : pinY - 10;
+                fontRenderer.drawStringWithShadow(shortLabel, (float)lx, (float)ly, wp.color);
+            }
+        }
+
+        // Player center position & direction arrow
+        float yawRad = (viewEntity.rotationYaw + 180.0F) * 0.017453292F;
+        int tipX = mapCenterX + Math.round(-MathHelper.sin(yawRad) * 3.0F);
+        int tipY = mapCenterY + Math.round(MathHelper.cos(yawRad) * 3.0F);
+        drawRect(mapCenterX - 2, mapCenterY - 2, mapCenterX + 3, mapCenterY + 3, 0xFF000000);
+        drawRect(mapCenterX - 1, mapCenterY - 1, mapCenterX + 2, mapCenterY + 2, 0xFFFFFFFF);
+        drawRect(tipX - 1, tipY - 1, tipX + 2, tipY + 2, 0xFF33CCFF);
+
+        // Cardinal directions (N / S / E / W)
+        fontRenderer.drawStringWithShadow("\u00a7cN", (float)(mapCenterX - 2), (float)(mapY + 1), 0xFFFFFF);
+        fontRenderer.drawStringWithShadow("\u00a77S", (float)(mapCenterX - 2), (float)(mapY + mapSize - 9), 0xCCCCCC);
+        fontRenderer.drawStringWithShadow("\u00a77W", (float)(mapX + 2), (float)(mapCenterY - 4), 0xCCCCCC);
+        fontRenderer.drawStringWithShadow("\u00a77E", (float)(mapX + mapSize - 7), (float)(mapCenterY - 4), 0xCCCCCC);
+
+        // Footer bar: nearest waypoint or [B] Waypoint hint
+        String footerText;
+
+        if (nearestWp != null)
+        {
+            String wpLabel = nearestWp.name.length() > 7 ? nearestWp.name.substring(0, 7) : nearestWp.name;
+            footerText = "\u00a7b\u25c6 \u00a7f" + wpLabel + " \u00a77(" + nearestDist + "m)";
+        }
+        else
+        {
+            footerText = "\u00a79[\u00a7bB\u00a79] \u00a77Waypoints";
+        }
+
+        int fw = fontRenderer.getStringWidth(footerText);
+        fontRenderer.drawStringWithShadow(footerText, (float)(mapCenterX - fw / 2), (float)(mapY + mapSize + 3), 0xFFFFFF);
+    }
+
+    private void renderVoiceChatHud(double hudWidth, double hudHeight, FontRenderer fontRenderer)
+    {
+        if (this.mc.player == null || this.mc.world == null)
+        {
+            return;
+        }
+
+        boolean muted = ArgonVoiceChatManager.isMicMuted();
+        boolean speaking = ArgonVoiceChatManager.isPttActive();
+        boolean whispering = this.mc.player.isSneaking();
+        float micLevel = ArgonVoiceChatManager.getLocalMicLevel();
+
+        int baseX = 5;
+        int baseY = (int)hudHeight - 24;
+
+        String statusText;
+        int accentColor;
+
+        if (muted)
+        {
+            statusText = "\u00a7cMIC MUTED \u00a77[M]";
+            accentColor = 0xFFDD3344;
+        }
+        else if (speaking)
+        {
+            statusText = whispering ? "\u00a7eWHISPERING \u00a77[V]" : "\u00a7aSPEAKING \u00a77[V]";
+            accentColor = whispering ? 0xFFFFCC33 : 0xFF00E5FF;
+        }
+        else
+        {
+            statusText = "\u00a77VOICE READY \u00a78[V]";
+            accentColor = 0xFF3399FF;
+        }
+
+        int textW = fontRenderer.getStringWidth(statusText);
+        int boxW = 20 + textW + (speaking ? 16 : 6);
+        int boxH = 18;
+
+        drawRect(baseX, baseY, baseX + boxW, baseY + boxH, 0x77000000);
+        drawRect(baseX, baseY, baseX + 2, baseY + boxH, accentColor);
+
+        // Procedural Microphone Icon (10x12 at baseX + 5, baseY + 3)
+        int micX = baseX + 6;
+        int micY = baseY + 3;
+        int micColor = muted ? 0xFFDD3344 : (speaking ? 0xFF00E5FF : 0xFFCCCCCC);
+        drawRect(micX + 2, micY, micX + 6, micY + 6, micColor);       // Capsule
+        drawRect(micX + 1, micY + 4, micX + 7, micY + 8, micColor);   // U-cradle
+        drawRect(micX + 3, micY + 8, micX + 5, micY + 10, micColor);  // Stem
+        drawRect(micX + 1, micY + 10, micX + 7, micY + 11, micColor); // Base
+
+        if (muted)
+        {
+            // Diagonal mute strike
+            drawRect(micX, micY + 1, micX + 3, micY + 3, 0xFFFF2222);
+            drawRect(micX + 3, micY + 4, micX + 6, micY + 6, 0xFFFF2222);
+            drawRect(micX + 6, micY + 7, micX + 8, micY + 9, 0xFFFF2222);
+        }
+
+        fontRenderer.drawStringWithShadow(statusText, (float)(baseX + 18), (float)(baseY + 5), 0xFFFFFF);
+
+        if (speaking)
+        {
+            int waveX = baseX + 20 + textW;
+            int bar1H = Math.max(2, Math.round(micLevel * 8.0F));
+            int bar2H = Math.max(3, Math.round((0.5F + 0.5F * micLevel) * 10.0F));
+            int bar3H = Math.max(2, Math.round(micLevel * 6.0F));
+            int bottomY = baseY + 14;
+            drawRect(waveX, bottomY - bar1H, waveX + 2, bottomY, accentColor);
+            drawRect(waveX + 3, bottomY - bar2H, waveX + 5, bottomY, accentColor);
+            drawRect(waveX + 6, bottomY - bar3H, waveX + 8, bottomY, accentColor);
+        }
+
+        // Render Nearby Proximity Voice Peers right above the mic widget
+        List<ArgonVoiceChatManager.VoicePeerState> peers = ArgonVoiceChatManager.getActiveHudPeers();
+        int maxShown = Math.min(4, peers.size());
+
+        for (int i = 0; i < maxShown; ++i)
+        {
+            ArgonVoiceChatManager.VoicePeerState peer = peers.get(i);
+            int rowY = baseY - (i + 1) * 16 - 2;
+            int gainPct = Math.round(MathHelper.clamp(peer.proximityGain, 0.0F, 1.0F) * 100.0F);
+            int distInt = MathHelper.floor(peer.distance);
+            String occTag = peer.occluded ? " \u00a78[Wall]" : "";
+            String peerLabel = (peer.speaking ? "\u00a7a\u25b6 \u00a7f" : "\u00a7b\u2022 \u00a77") + peer.name + " \u00a78(" + distInt + "m)" + occTag;
+            int labelW = fontRenderer.getStringWidth(peerLabel);
+            int rowW = Math.max(115, labelW + 38);
+
+            drawRect(baseX, rowY, baseX + rowW, rowY + 14, 0x66000000);
+            drawRect(baseX, rowY, baseX + 2, rowY + 14, peer.speaking ? 0xFF33CC66 : 0xFF3399FF);
+            fontRenderer.drawStringWithShadow(peerLabel, (float)(baseX + 5), (float)(rowY + 3), 0xFFFFFF);
+
+            // Proximity Attenuation Bar (grows as player gets closer, shrinks with distance)
+            int barW = 26;
+            int barX = baseX + rowW - barW - 4;
+            int barY = rowY + 5;
+            int fillW = MathHelper.clamp(Math.round((float)barW * MathHelper.clamp(peer.proximityGain, 0.0F, 1.0F)), 0, barW);
+            int barColor = gainPct >= 60 ? 0xFF00E5FF : (gainPct >= 30 ? 0xFF3399FF : 0xFF557799);
+
+            drawRect(barX, barY, barX + barW, barY + 4, 0x88111824);
+
+            if (fillW > 0)
+            {
+                drawRect(barX, barY, barX + fillW, barY + 4, barColor);
+            }
+        }
     }
 }

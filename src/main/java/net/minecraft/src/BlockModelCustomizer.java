@@ -2,6 +2,7 @@ package net.minecraft.src;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.IBakedModel;
@@ -27,7 +28,7 @@ public class BlockModelCustomizer
     {
         if (p_getRenderQuads_4_ != null)
         {
-            if (p_getRenderQuads_7_.isSmartLeaves() && p_getRenderQuads_1_.getBlockState(p_getRenderQuads_3_.offset(p_getRenderQuads_4_)) == p_getRenderQuads_2_)
+            if ((p_getRenderQuads_7_.isSmartLeaves() || (BlockLeaves.cullLeaves && p_getRenderQuads_2_.getBlock() instanceof BlockLeaves)) && p_getRenderQuads_1_.getBlockState(p_getRenderQuads_3_.offset(p_getRenderQuads_4_)).getBlock() instanceof BlockLeaves)
             {
                 return NO_QUADS;
             }

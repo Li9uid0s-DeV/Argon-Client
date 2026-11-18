@@ -2148,12 +2148,20 @@ public class Config
 
     public static void updateFramebufferSize()
     {
-        minecraft.getFramebuffer().createBindFramebuffer(minecraft.displayWidth, minecraft.displayHeight);
-
-        if (minecraft.entityRenderer != null)
+        if (minecraft != null && minecraft.getFramebuffer() != null)
         {
-            minecraft.entityRenderer.updateShaderGroupSize(minecraft.displayWidth, minecraft.displayHeight);
+            minecraft.updateFramebufferSize();
         }
+    }
+
+    public static boolean isLeafCulling()
+    {
+        return gameSettings == null ? true : gameSettings.ofLeafCulling;
+    }
+
+    public static boolean isEntityCulling()
+    {
+        return gameSettings == null ? true : gameSettings.ofEntityCulling;
     }
 
     public static Object[] addObjectToArray(Object[] p_addObjectToArray_0_, Object p_addObjectToArray_1_)
@@ -2381,5 +2389,70 @@ public class Config
     public static int getScreenshotSize()
     {
         return gameSettings.ofScreenshotSize;
+    }
+
+    public static boolean isCameraOverhaul()
+    {
+        return gameSettings == null ? true : gameSettings.ofCameraOverhaul;
+    }
+
+    public static float getCameraOverhaulIntensity()
+    {
+        return gameSettings == null ? 1.0F : gameSettings.ofCameraOverhaulIntensity;
+    }
+
+    public static boolean isBarrelRoll()
+    {
+        return gameSettings == null ? true : gameSettings.ofBarrelRoll;
+    }
+
+    public static float getBarrelRollSensitivity()
+    {
+        return gameSettings == null ? 1.0F : gameSettings.ofBarrelRollSensitivity;
+    }
+
+    public static boolean isEnhancedVisuals()
+    {
+        return gameSettings == null ? true : gameSettings.ofEnhancedVisuals;
+    }
+
+    public static boolean isSoundPhysics()
+    {
+        return gameSettings == null ? true : gameSettings.ofSoundPhysics;
+    }
+
+    public static boolean isItemPhysics()
+    {
+        return gameSettings == null ? true : gameSettings.ofItemPhysics;
+    }
+
+    public static boolean isAmbientSounds()
+    {
+        return gameSettings == null ? true : gameSettings.ofAmbientSounds;
+    }
+
+    public static boolean isJadeHud()
+    {
+        return gameSettings == null ? true : gameSettings.ofJadeHud;
+    }
+
+    public static boolean isMinimap()
+    {
+        return gameSettings == null ? true : gameSettings.ofMinimap;
+    }
+
+    public static boolean isVoiceChat()
+    {
+        return gameSettings == null ? true : gameSettings.ofVoiceChat;
+    }
+
+    public static float getVoiceChatDistance()
+    {
+        return gameSettings == null ? 32.0F : gameSettings.ofVoiceChatDistance;
+    }
+
+    public static float getVoiceChatVolume()
+    {
+        return gameSettings == null ? 1.0F : gameSettings.ofVoiceChatVolume;
     }
 }

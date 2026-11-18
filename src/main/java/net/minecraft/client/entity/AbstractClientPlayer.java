@@ -14,6 +14,7 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
+import net.minecraft.src.ArgonSkinManager;
 import net.minecraft.src.CapeUtils;
 import net.minecraft.src.Config;
 import net.minecraft.src.PlayerConfigurations;
@@ -86,6 +87,11 @@ public abstract class AbstractClientPlayer extends EntityPlayer
      */
     public boolean hasSkin()
     {
+        if (ArgonSkinManager.isLocalPlayer(this) && ArgonSkinManager.hasCustomSkin())
+        {
+            return true;
+        }
+
         NetworkPlayerInfo networkplayerinfo = this.getPlayerInfo();
         return networkplayerinfo != null && networkplayerinfo.hasLocationSkin();
     }
@@ -95,6 +101,16 @@ public abstract class AbstractClientPlayer extends EntityPlayer
      */
     public ResourceLocation getLocationSkin()
     {
+        if (ArgonSkinManager.isLocalPlayer(this) && ArgonSkinManager.hasCustomSkin())
+        {
+            ResourceLocation customLoc = ArgonSkinManager.getCustomSkinLocation();
+
+            if (customLoc != null)
+            {
+                return customLoc;
+            }
+        }
+
         NetworkPlayerInfo networkplayerinfo = this.getPlayerInfo();
         return networkplayerinfo == null ? DefaultPlayerSkin.getDefaultSkin(this.getUniqueID()) : networkplayerinfo.getLocationSkin();
     }

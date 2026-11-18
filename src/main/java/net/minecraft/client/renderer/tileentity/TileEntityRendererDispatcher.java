@@ -10,12 +10,15 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.Entity;
+import net.minecraft.src.Config;
 import net.minecraft.src.Reflector;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBanner;
@@ -33,6 +36,7 @@ import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.tileentity.TileEntityStructure;
 import net.minecraft.util.ReportedException;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.World;
@@ -61,6 +65,7 @@ public class TileEntityRendererDispatcher
     public double entityY;
     public double entityZ;
     public TileEntity tileEntityRendered;
+    public ICamera currentCamera;
     private Tessellator batchBuffer = new Tessellator(2097152);
     private boolean drawingBatch = false;
 
@@ -124,9 +129,71 @@ public class TileEntityRendererDispatcher
         this.entityZ = entityIn.lastTickPosZ + (entityIn.posZ - entityIn.lastTickPosZ) * (double)p_190056_6_;
     }
 
+    public void setCamera(@Nullable ICamera cameraIn)
+    {
+        this.currentCamera = cameraIn;
+    }
+
+    public boolean isTileEntityInFrustum(TileEntity tileentityIn, @Nullable ICamera cameraIn)
+    {
+        if (cameraIn == null || tileentityIn instanceof TileEntityStructure)
+        {
+            return true;
+        }
+
+        BlockPos blockpos = tileentityIn.getPos();
+        double minX = (double)blockpos.getX();
+        double minY = (double)blockpos.getY();
+        double minZ = (double)blockpos.getZ();
+        double maxX = minX + 1.0D;
+        double maxY = minY + 1.0D;
+        double maxZ = minZ + 1.0D;
+
+        if (tileentityIn instanceof TileEntityBeacon || tileentityIn instanceof TileEntityEndGateway)
+        {
+            maxY = 256.0D;
+        }
+        else if (tileentityIn instanceof TileEntityChest || tileentityIn instanceof TileEntityBed || tileentityIn instanceof TileEntityBanner || tileentityIn instanceof TileEntityPiston)
+        {
+            minX -= 1.0D;
+            minY -= 0.5D;
+            minZ -= 1.0D;
+            maxX += 1.0D;
+            maxY += 1.5D;
+            maxZ += 1.0D;
+        }
+
+        if (cameraIn instanceof Frustum)
+        {
+            return ((Frustum)cameraIn).isBoxInFrustum(minX, minY, minZ, maxX, maxY, maxZ);
+        }
+
+        return cameraIn.isBoundingBoxInFrustum(new AxisAlignedBB(minX, minY, minZ, maxX, maxY, maxZ));
+    }
+
+    public boolean shouldRenderTileEntity(TileEntity tileentityIn, @Nullable ICamera cameraIn)
+    {
+        if (tileentityIn == null || tileentityIn.isInvalid())
+        {
+            return false;
+        }
+
+        if (tileentityIn.getDistanceSq(this.entityX, this.entityY, this.entityZ) >= tileentityIn.getMaxRenderDistanceSquared())
+        {
+            return false;
+        }
+
+        if (Config.isEntityCulling() && cameraIn != null && !this.isTileEntityInFrustum(tileentityIn, cameraIn))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public void render(TileEntity tileentityIn, float partialTicks, int destroyStage)
     {
-        if (tileentityIn.getDistanceSq(this.entityX, this.entityY, this.entityZ) < tileentityIn.getMaxRenderDistanceSquared())
+        if (this.shouldRenderTileEntity(tileentityIn, destroyStage < 0 ? this.currentCamera : null))
         {
             RenderHelper.enableStandardItemLighting();
             boolean flag = true;

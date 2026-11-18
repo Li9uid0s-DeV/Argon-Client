@@ -165,6 +165,9 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.management.PlayerProfileCache;
 import net.minecraft.stats.RecipeBook;
 import net.minecraft.stats.StatisticsManager;
+import net.minecraft.src.ArgonVoiceChatManager;
+import net.minecraft.src.ArgonWaypointManager;
+import net.minecraft.src.GuiArgonWaypoints;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.EnumActionResult;
@@ -541,6 +544,12 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         OpenGlHelper.initializeTextures();
         this.framebufferMc = new Framebuffer(this.displayWidth, this.displayHeight, true);
         this.framebufferMc.setFramebufferColor(0.0F, 0.0F, 0.0F, 0.0F);
+
+        if (this.gameSettings != null && Math.abs(this.gameSettings.ofResolutionScale - 1.0F) > 0.001F)
+        {
+            this.framebufferMc.setResolutionScale(this.gameSettings.ofResolutionScale);
+            this.framebufferMc.createBindFramebuffer(this.displayWidth, this.displayHeight);
+        }
         this.registerMetadataSerializers();
         this.mcResourcePackRepository = new ResourcePackRepository(this.fileResourcepacks, new File(this.mcDataDir, "server-resource-packs"), this.mcDefaultResourcePack, this.metadataSerializer_, this.gameSettings);
         this.mcResourceManager = new SimpleReloadableResourceManager(this.metadataSerializer_);
@@ -692,7 +701,7 @@ public class Minecraft implements IThreadListener, ISnooperInfo
     private void createDisplay() throws LWJGLException
     {
         Display.setResizable(true);
-        Display.setTitle("Eaglercraft 1.12");
+        Display.setTitle("Argon Client 1.12.2");
 
         try
         {
@@ -1235,9 +1244,6 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         }
 
         this.framebufferMc.unbindFramebuffer();
-        GlStateManager.popMatrix();
-        GlStateManager.pushMatrix();
-        this.framebufferMc.framebufferRender(this.displayWidth, this.displayHeight);
         GlStateManager.popMatrix();
         GlStateManager.pushMatrix();
         this.entityRenderer.renderStreamIndicator(this.timer.renderPartialTicks);
@@ -1798,13 +1804,18 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         this.updateFramebufferSize();
     }
 
-    private void updateFramebufferSize()
+    public void updateFramebufferSize()
     {
+        if (this.gameSettings != null)
+        {
+            this.framebufferMc.setResolutionScale(this.gameSettings.ofResolutionScale);
+        }
+
         this.framebufferMc.createBindFramebuffer(this.displayWidth, this.displayHeight);
 
         if (this.entityRenderer != null)
         {
-            this.entityRenderer.updateShaderGroupSize(this.displayWidth, this.displayHeight);
+            this.entityRenderer.updateShaderGroupSize(this.framebufferMc.framebufferWidth, this.framebufferMc.framebufferHeight);
         }
     }
 
@@ -1975,6 +1986,7 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         {
             this.mcMusicTicker.update();
             this.mcSoundHandler.update();
+            ArgonVoiceChatManager.updateClientTick(this);
         }
 
         if (this.world != null)
@@ -2296,6 +2308,29 @@ public class Minecraft implements IThreadListener, ISnooperInfo
         while (this.gameSettings.keyBindAdvancements.isPressed())
         {
             this.displayGuiScreen(new GuiScreenAdvancements(this.player.connection.getAdvancementManager()));
+        }
+
+        while (this.gameSettings.ofKeyBindWaypoint != null && this.gameSettings.ofKeyBindWaypoint.isPressed())
+        {
+            if (GuiScreen.isShiftKeyDown())
+            {
+                ArgonWaypointManager.addQuickWaypointAtPlayer(this);
+            }
+            else
+            {
+                this.displayGuiScreen(new GuiArgonWaypoints((GuiScreen)null));
+            }
+        }
+
+        while (this.gameSettings.ofKeyBindVoiceMute != null && this.gameSettings.ofKeyBindVoiceMute.isPressed())
+        {
+            ArgonVoiceChatManager.toggleMicMuted();
+
+            if (this.player != null)
+            {
+                String muteStatus = ArgonVoiceChatManager.isMicMuted() ? "\u00a7cMuted" : "\u00a7aUnmuted";
+                this.ingameGUI.setOverlayMessage("\u00a7b[Argon Voice] \u00a7fMicrophone: " + muteStatus, false);
+            }
         }
 
         while (this.gameSettings.keyBindSwapHands.isPressed())
@@ -2694,6 +2729,12 @@ public class Minecraft implements IThreadListener, ISnooperInfo
     public static boolean isAmbientOcclusionEnabled()
     {
         return instance != null && instance.gameSettings.ambientOcclusion != 0;
+    }
+
+    @Nullable
+    public RayTraceResult getObjectMouseOver()
+    {
+        return this.objectMouseOver;
     }
 
     /**

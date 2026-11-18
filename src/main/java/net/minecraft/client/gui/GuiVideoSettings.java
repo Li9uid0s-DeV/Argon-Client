@@ -5,6 +5,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.src.Config;
 import net.minecraft.src.GuiAnimationSettingsOF;
+import net.minecraft.src.GuiArgonSettings;
 import net.minecraft.src.GuiDetailSettingsOF;
 import net.minecraft.src.GuiOptionButtonOF;
 import net.minecraft.src.GuiOptionSliderOF;
@@ -21,7 +22,7 @@ public class GuiVideoSettings extends GuiScreenOF
     private GuiScreen parentGuiScreen;
     protected String screenTitle = "Video Settings";
     private GameSettings guiGameSettings;
-    private static GameSettings.Options[] videoOptions = new GameSettings.Options[] {GameSettings.Options.GRAPHICS, GameSettings.Options.RENDER_DISTANCE, GameSettings.Options.AMBIENT_OCCLUSION, GameSettings.Options.FRAMERATE_LIMIT, GameSettings.Options.AO_LEVEL, GameSettings.Options.VIEW_BOBBING, GameSettings.Options.GUI_SCALE, GameSettings.Options.USE_VBO, GameSettings.Options.GAMMA, GameSettings.Options.ATTACK_INDICATOR, GameSettings.Options.DYNAMIC_LIGHTS, GameSettings.Options.DYNAMIC_FOV};
+    private static GameSettings.Options[] videoOptions = new GameSettings.Options[] {GameSettings.Options.GRAPHICS, GameSettings.Options.RENDER_DISTANCE, GameSettings.Options.AMBIENT_OCCLUSION, GameSettings.Options.FRAMERATE_LIMIT, GameSettings.Options.AO_LEVEL, GameSettings.Options.VIEW_BOBBING, GameSettings.Options.GUI_SCALE, GameSettings.Options.USE_VBO, GameSettings.Options.GAMMA, GameSettings.Options.ATTACK_INDICATOR, GameSettings.Options.DYNAMIC_LIGHTS, GameSettings.Options.DYNAMIC_FOV, GameSettings.Options.RESOLUTION_SCALE, GameSettings.Options.CONNECTED_TEXTURES};
     private static final String __OBFID = "CL_00000718";
     private TooltipManager tooltipManager = new TooltipManager(this);
 
@@ -40,6 +41,17 @@ public class GuiVideoSettings extends GuiScreenOF
         this.screenTitle = I18n.format("options.videoTitle");
         this.buttonList.clear();
 
+        int optionRows = (videoOptions.length + 1) / 2;
+        int totalRows = optionRows + 4;
+        int rowStep = 21;
+        int topY = this.height / 6 - 12;
+
+        if (topY + totalRows * rowStep + 24 > this.height)
+        {
+            rowStep = 18;
+            topY = Math.max(16, (this.height - (totalRows * rowStep + 22)) / 2);
+        }
+
         for (int i = 0; i < videoOptions.length; ++i)
         {
             GameSettings.Options gamesettings$options = videoOptions[i];
@@ -47,7 +59,7 @@ public class GuiVideoSettings extends GuiScreenOF
             if (gamesettings$options != null)
             {
                 int j = this.width / 2 - 155 + i % 2 * 160;
-                int k = this.height / 6 + 21 * (i / 2) - 12;
+                int k = topY + rowStep * (i / 2);
 
                 if (gamesettings$options.getEnumFloat())
                 {
@@ -60,24 +72,26 @@ public class GuiVideoSettings extends GuiScreenOF
             }
         }
 
-        int l = this.height / 6 + 21 * (videoOptions.length / 2) - 12;
+        int l = topY + rowStep * optionRows;
         int i1 = 0;
         i1 = this.width / 2 - 155 + 0;
         this.buttonList.add(new GuiOptionButton(231, i1, l, Lang.get("of.options.shaders")));
         i1 = this.width / 2 - 155 + 160;
         this.buttonList.add(new GuiOptionButton(202, i1, l, Lang.get("of.options.quality")));
-        l = l + 21;
+        l = l + rowStep;
         i1 = this.width / 2 - 155 + 0;
         this.buttonList.add(new GuiOptionButton(201, i1, l, Lang.get("of.options.details")));
         i1 = this.width / 2 - 155 + 160;
         this.buttonList.add(new GuiOptionButton(212, i1, l, Lang.get("of.options.performance")));
-        l = l + 21;
+        l = l + rowStep;
         i1 = this.width / 2 - 155 + 0;
         this.buttonList.add(new GuiOptionButton(211, i1, l, Lang.get("of.options.animations")));
         i1 = this.width / 2 - 155 + 160;
         this.buttonList.add(new GuiOptionButton(222, i1, l, Lang.get("of.options.other")));
-        l = l + 21;
-        this.buttonList.add(new GuiButton(200, this.width / 2 - 100, this.height / 6 + 168 + 11, I18n.format("gui.done")));
+        l = l + rowStep;
+        this.buttonList.add(new GuiButton(240, this.width / 2 - 155, l, 310, 20, "\u00a7bArgon \u00a79Client \u00a7fSettings..."));
+        l = l + rowStep;
+        this.buttonList.add(new GuiButton(200, this.width / 2 - 100, Math.min(this.height - 24, Math.max(this.height / 6 + 168 + 11, l)), I18n.format("gui.done")));
     }
 
     /**
@@ -157,6 +171,13 @@ public class GuiVideoSettings extends GuiScreenOF
                 this.mc.displayGuiScreen(guiothersettingsof);
             }
 
+            if (p_actionPerformed_1_.id == 240)
+            {
+                this.mc.gameSettings.saveOptions();
+                GuiArgonSettings guiargonsettings = new GuiArgonSettings(this, this.guiGameSettings);
+                this.mc.displayGuiScreen(guiargonsettings);
+            }
+
             if (p_actionPerformed_1_.id == 231)
             {
                 if (Config.isAntialiasing() || Config.isAntialiasingConfigured())
@@ -216,7 +237,7 @@ public class GuiVideoSettings extends GuiScreenOF
         }
 
         this.drawString(this.fontRenderer, s, 2, this.height - 10, 8421504);
-        String s2 = "Minecraft 1.12";
+        String s2 = "\u00a7bArgon Client \u00a791.12.2";
         int i = this.fontRenderer.getStringWidth(s2);
         this.drawString(this.fontRenderer, s2, this.width - i - 2, this.height - 10, 8421504);
         super.drawScreen(mouseX, mouseY, partialTicks);

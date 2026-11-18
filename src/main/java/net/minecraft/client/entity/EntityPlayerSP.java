@@ -57,6 +57,7 @@ import net.minecraft.network.play.client.CPacketRecipeInfo;
 import net.minecraft.network.play.client.CPacketVehicleMove;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
+import net.minecraft.src.Config;
 import net.minecraft.stats.RecipeBook;
 import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatisticsManager;
@@ -160,6 +161,25 @@ public class EntityPlayerSP extends AbstractClientPlayer
     private boolean autoJumpEnabled = true;
     private int autoJumpTime;
     private boolean wasFallFlying;
+    public float cameraOverhaulRoll;
+    public float prevCameraOverhaulRoll;
+    public float cameraOverhaulPitchOffset;
+    public float prevCameraOverhaulPitchOffset;
+    public float cameraOverhaulVerticalOffset;
+    public float prevCameraOverhaulVerticalOffset;
+    private float cameraOverhaulPitchVelocity;
+    private float cameraOverhaulVerticalVelocity;
+    private double lastCameraMotionY;
+    private boolean lastCameraOnGround = true;
+    private float lastCameraYaw;
+    public float elytraRoll;
+    public float prevElytraRoll;
+    private float elytraRollVelocity;
+    public float enhancedDamageIntensity;
+    public float prevEnhancedDamageIntensity;
+    public float enhancedExplosionIntensity;
+    public float prevEnhancedExplosionIntensity;
+    public int enhancedVisualsSeed;
 
     public EntityPlayerSP(Minecraft p_i47378_1_, World p_i47378_2_, NetHandlerPlayClient p_i47378_3_, StatisticsManager p_i47378_4_, RecipeBook p_i47378_5_)
     {
@@ -225,6 +245,63 @@ public class EntityPlayerSP extends AbstractClientPlayer
     public Vec3d getLook(float partialTicks)
     {
         return this.getVectorForRotation(this.rotationPitch, this.rotationYaw);
+    }
+
+    public void turn(float yaw, float pitch)
+    {
+        if (this.isElytraFlying() && Config.isBarrelRoll())
+        {
+            float sens = Config.getBarrelRollSensitivity();
+            float prevPitch = this.rotationPitch;
+            float prevYaw = this.rotationYaw;
+            float prevRoll = this.elytraRoll;
+
+            float deltaRoll = yaw * 0.22F * sens;
+            float localDeltaPitch = -pitch * 0.15F * sens;
+
+            this.elytraRoll = MathHelper.wrapDegrees(this.elytraRoll + deltaRoll);
+            float rollRad = this.elytraRoll * 0.017453292F;
+            float cosRoll = MathHelper.cos(rollRad);
+            float sinRoll = MathHelper.sin(rollRad);
+
+            float worldDeltaPitch = localDeltaPitch * cosRoll;
+            float worldDeltaYaw = localDeltaPitch * sinRoll + yaw * 0.035F * cosRoll * sens;
+
+            float newPitch = this.rotationPitch + worldDeltaPitch;
+            float newYaw = this.rotationYaw + worldDeltaYaw;
+
+            if (newPitch > 90.0F)
+            {
+                newPitch = 180.0F - newPitch;
+                newYaw += 180.0F;
+                this.prevRotationYaw += 180.0F;
+                this.elytraRoll = MathHelper.wrapDegrees(this.elytraRoll + 180.0F);
+                this.prevElytraRoll += 180.0F;
+            }
+            else if (newPitch < -90.0F)
+            {
+                newPitch = -180.0F - newPitch;
+                newYaw += 180.0F;
+                this.prevRotationYaw += 180.0F;
+                this.elytraRoll = MathHelper.wrapDegrees(this.elytraRoll + 180.0F);
+                this.prevElytraRoll += 180.0F;
+            }
+
+            this.rotationPitch = MathHelper.clamp(newPitch, -90.0F, 90.0F);
+            this.rotationYaw = newYaw;
+            this.prevRotationPitch += this.rotationPitch - prevPitch;
+            this.prevRotationYaw += this.rotationYaw - prevYaw;
+            this.prevElytraRoll += MathHelper.wrapDegrees(this.elytraRoll - prevRoll);
+
+            if (this.getRidingEntity() != null)
+            {
+                this.getRidingEntity().applyOrientationToEntity(this);
+            }
+        }
+        else
+        {
+            super.turn(yaw, pitch);
+        }
     }
 
     /**
@@ -435,12 +512,50 @@ public class EntityPlayerSP extends AbstractClientPlayer
                 this.damageEntity(DamageSource.GENERIC, f);
                 this.maxHurtTime = 10;
                 this.hurtTime = this.maxHurtTime;
+                this.onDamageTaken(f);
             }
         }
         else
         {
             this.setHealth(health);
             this.hasValidHealth = true;
+        }
+    }
+
+    public void performHurtAnimation()
+    {
+        super.performHurtAnimation();
+        this.onDamageTaken(Math.max(this.lastDamage, 2.0F));
+    }
+
+    public void onDamageTaken(float damageAmount)
+    {
+        float added = MathHelper.clamp(0.32F + damageAmount * 0.085F, 0.35F, 1.0F);
+        this.enhancedDamageIntensity = MathHelper.clamp(Math.max(this.enhancedDamageIntensity, added) + added * 0.25F, 0.0F, 1.0F);
+        this.enhancedVisualsSeed = this.ticksExisted * 31 + (int)(damageAmount * 17.0F);
+
+        if (damageAmount >= 4.0F)
+        {
+            float blurAdded = MathHelper.clamp((damageAmount - 3.0F) * 0.09F, 0.15F, 0.65F);
+            this.enhancedExplosionIntensity = MathHelper.clamp(Math.max(this.enhancedExplosionIntensity, blurAdded), 0.0F, 1.0F);
+        }
+    }
+
+    public void onExplosionImpact(double expX, double expY, double expZ, float strength)
+    {
+        double dx = this.posX - expX;
+        double dy = (this.posY + (double)this.getEyeHeight()) - expY;
+        double dz = this.posZ - expZ;
+        double dist = (double)MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
+        double maxDist = Math.max(8.0D, (double)strength * 4.0D);
+
+        if (dist < maxDist)
+        {
+            float proximity = (float)(1.0D - dist / maxDist);
+            float power = MathHelper.clamp(proximity * (0.45F + strength * 0.16F), 0.25F, 1.0F);
+            this.enhancedExplosionIntensity = MathHelper.clamp(Math.max(this.enhancedExplosionIntensity, power) + power * 0.2F, 0.0F, 1.0F);
+            this.enhancedDamageIntensity = MathHelper.clamp(Math.max(this.enhancedDamageIntensity, power * 0.85F), 0.0F, 1.0F);
+            this.enhancedVisualsSeed = this.ticksExisted * 53 + (int)(strength * 29.0F);
         }
     }
 
@@ -1119,6 +1234,126 @@ public class EntityPlayerSP extends AbstractClientPlayer
             this.capabilities.isFlying = false;
             this.sendPlayerAbilities();
         }
+
+        this.updateCameraEffects();
+    }
+
+    private void updateCameraEffects()
+    {
+        this.prevCameraOverhaulRoll = this.cameraOverhaulRoll;
+        this.prevCameraOverhaulPitchOffset = this.cameraOverhaulPitchOffset;
+        this.prevCameraOverhaulVerticalOffset = this.cameraOverhaulVerticalOffset;
+        this.prevElytraRoll = this.elytraRoll;
+        this.prevEnhancedDamageIntensity = this.enhancedDamageIntensity;
+        this.prevEnhancedExplosionIntensity = this.enhancedExplosionIntensity;
+
+        if (this.enhancedDamageIntensity > 0.001F)
+        {
+            this.enhancedDamageIntensity *= 0.935F;
+
+            if (this.enhancedDamageIntensity < 0.005F)
+            {
+                this.enhancedDamageIntensity = 0.0F;
+            }
+        }
+
+        if (this.enhancedExplosionIntensity > 0.001F)
+        {
+            this.enhancedExplosionIntensity *= 0.925F;
+
+            if (this.enhancedExplosionIntensity < 0.005F)
+            {
+                this.enhancedExplosionIntensity = 0.0F;
+            }
+        }
+
+        if (this.getHealth() > 0.0F && this.getHealth() <= 6.0F && !this.capabilities.isCreativeMode && !this.isSpectator())
+        {
+            float lowHealthFactor = (6.0F - this.getHealth()) / 6.0F;
+            float pulse = (MathHelper.sin((float)this.ticksExisted * 0.25F) * 0.5F + 0.5F) * 0.22F * lowHealthFactor + 0.14F * lowHealthFactor;
+
+            if (this.enhancedDamageIntensity < pulse)
+            {
+                this.enhancedDamageIntensity = pulse;
+            }
+        }
+
+        if (this.isElytraFlying() && Config.isBarrelRoll())
+        {
+            float sens = Config.getBarrelRollSensitivity();
+            float strafeInput = this.movementInput != null ? this.movementInput.moveStrafe : 0.0F;
+
+            if (Math.abs(strafeInput) > 0.001F)
+            {
+                this.elytraRollVelocity += -strafeInput * 3.2F * sens;
+            }
+
+            this.elytraRoll = MathHelper.wrapDegrees(this.elytraRoll + this.elytraRollVelocity);
+            this.elytraRollVelocity *= 0.82F;
+
+            float rollRad = this.elytraRoll * 0.017453292F;
+            float pitchRad = this.rotationPitch * 0.017453292F;
+            float bankTurnYaw = MathHelper.sin(rollRad) * MathHelper.cos(pitchRad) * 1.65F * sens;
+            this.rotationYaw += bankTurnYaw;
+        }
+        else
+        {
+            this.elytraRollVelocity = 0.0F;
+            this.elytraRoll = MathHelper.wrapDegrees(this.elytraRoll) * 0.72F;
+
+            if (Math.abs(this.elytraRoll) < 0.05F)
+            {
+                this.elytraRoll = 0.0F;
+            }
+        }
+
+        if (Config.isCameraOverhaul())
+        {
+            float yawRad = this.rotationYaw * 0.017453292F;
+            float sinYaw = MathHelper.sin(yawRad);
+            float cosYaw = MathHelper.cos(yawRad);
+            float localStrafeVel = (float)(this.motionX * (double)cosYaw + this.motionZ * (double)sinYaw);
+            float strafeInput = this.movementInput != null ? this.movementInput.moveStrafe : 0.0F;
+            float yawDelta = MathHelper.wrapDegrees(this.rotationYaw - this.lastCameraYaw);
+            this.lastCameraYaw = this.rotationYaw;
+
+            float targetRoll = -strafeInput * 2.6F - MathHelper.clamp(localStrafeVel * 9.0F, -3.5F, 3.5F) + MathHelper.clamp(yawDelta * 0.16F, -3.5F, 3.5F);
+            this.cameraOverhaulRoll += (targetRoll - this.cameraOverhaulRoll) * 0.28F;
+
+            if (this.lastCameraOnGround && !this.onGround && this.motionY > 0.1D)
+            {
+                this.cameraOverhaulPitchVelocity -= 2.6F;
+                this.cameraOverhaulVerticalVelocity += 0.045F;
+            }
+            else if (!this.lastCameraOnGround && this.onGround && this.lastCameraMotionY < -0.08D)
+            {
+                float impact = MathHelper.clamp((float)(-this.lastCameraMotionY), 0.1F, 1.4F);
+                this.cameraOverhaulPitchVelocity += impact * 6.8F;
+                this.cameraOverhaulVerticalVelocity -= impact * 0.14F;
+                this.cameraOverhaulRoll += (this.ticksExisted % 2 == 0 ? 1.0F : -1.0F) * impact * 1.8F;
+            }
+
+            float airbornePitchTarget = !this.onGround && !this.isElytraFlying() && !this.capabilities.isFlying ? MathHelper.clamp((float)(-this.motionY) * 5.0F, -7.0F, 9.0F) : 0.0F;
+            this.cameraOverhaulPitchVelocity += (airbornePitchTarget - this.cameraOverhaulPitchOffset) * 0.24F;
+            this.cameraOverhaulPitchVelocity *= 0.68F;
+            this.cameraOverhaulPitchOffset = MathHelper.clamp(this.cameraOverhaulPitchOffset + this.cameraOverhaulPitchVelocity, -18.0F, 18.0F);
+
+            this.cameraOverhaulVerticalVelocity += (0.0F - this.cameraOverhaulVerticalOffset) * 0.28F;
+            this.cameraOverhaulVerticalVelocity *= 0.65F;
+            this.cameraOverhaulVerticalOffset = MathHelper.clamp(this.cameraOverhaulVerticalOffset + this.cameraOverhaulVerticalVelocity, -0.35F, 0.25F);
+        }
+        else
+        {
+            this.cameraOverhaulRoll = 0.0F;
+            this.cameraOverhaulPitchOffset = 0.0F;
+            this.cameraOverhaulVerticalOffset = 0.0F;
+            this.cameraOverhaulPitchVelocity = 0.0F;
+            this.cameraOverhaulVerticalVelocity = 0.0F;
+            this.lastCameraYaw = this.rotationYaw;
+        }
+
+        this.lastCameraOnGround = this.onGround;
+        this.lastCameraMotionY = this.motionY;
     }
 
     /**

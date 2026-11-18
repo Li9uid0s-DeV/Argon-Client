@@ -72,6 +72,11 @@ public class ConnectedTextures
 
     public static synchronized BakedQuad[] getConnectedTexture(IBlockAccess p_getConnectedTexture_0_, IBlockState p_getConnectedTexture_1_, BlockPos p_getConnectedTexture_2_, BakedQuad p_getConnectedTexture_3_, RenderEnv p_getConnectedTexture_4_)
     {
+        if (!Config.isConnectedTextures())
+        {
+            return p_getConnectedTexture_4_.getArrayQuadsCtm(p_getConnectedTexture_3_);
+        }
+
         TextureAtlasSprite textureatlassprite = p_getConnectedTexture_3_.getSprite();
 
         if (textureatlassprite == null)
@@ -1907,39 +1912,63 @@ public class ConnectedTextures
         }
     }
 
+    public static void resetCache()
+    {
+        if (spriteQuadMaps != null)
+        {
+            Arrays.fill(spriteQuadMaps, (Object)null);
+        }
+
+        if (spriteQuadFullMaps != null)
+        {
+            Arrays.fill(spriteQuadFullMaps, (Object)null);
+        }
+
+        if (spriteQuadCompactMaps != null)
+        {
+            for (int i = 0; i < spriteQuadCompactMaps.length; ++i)
+            {
+                spriteQuadCompactMaps[i] = null;
+            }
+        }
+    }
+
+    public static boolean isInitialized()
+    {
+        return (blockProperties != null || tileProperties != null) && emptySprite != null;
+    }
+
     public static void updateIcons(TextureMap p_updateIcons_0_)
     {
         blockProperties = (ConnectedProperties[][])null;
         tileProperties = (ConnectedProperties[][])null;
         spriteQuadMaps = null;
+        spriteQuadFullMaps = null;
         spriteQuadCompactMaps = (Map[][])null;
 
-        if (Config.isConnectedTextures())
+        IResourcePack[] airesourcepack = Config.getResourcePacks();
+
+        for (int i = airesourcepack.length - 1; i >= 0; --i)
         {
-            IResourcePack[] airesourcepack = Config.getResourcePacks();
+            IResourcePack iresourcepack = airesourcepack[i];
+            updateIcons(p_updateIcons_0_, iresourcepack);
+        }
 
-            for (int i = airesourcepack.length - 1; i >= 0; --i)
-            {
-                IResourcePack iresourcepack = airesourcepack[i];
-                updateIcons(p_updateIcons_0_, iresourcepack);
-            }
+        updateIcons(p_updateIcons_0_, Config.getDefaultResourcePack());
+        ResourceLocation resourcelocation = new ResourceLocation("mcpatcher/ctm/default/empty");
+        emptySprite = p_updateIcons_0_.registerSprite(resourcelocation);
+        spriteQuadMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1];
+        spriteQuadFullMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1];
+        spriteQuadCompactMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1][];
 
-            updateIcons(p_updateIcons_0_, Config.getDefaultResourcePack());
-            ResourceLocation resourcelocation = new ResourceLocation("mcpatcher/ctm/default/empty");
-            emptySprite = p_updateIcons_0_.registerSprite(resourcelocation);
-            spriteQuadMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1];
-            spriteQuadFullMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1];
-            spriteQuadCompactMaps = new Map[p_updateIcons_0_.getCountRegisteredSprites() + 1][];
+        if (blockProperties != null && blockProperties.length <= 0)
+        {
+            blockProperties = (ConnectedProperties[][])null;
+        }
 
-            if (blockProperties.length <= 0)
-            {
-                blockProperties = (ConnectedProperties[][])null;
-            }
-
-            if (tileProperties.length <= 0)
-            {
-                tileProperties = (ConnectedProperties[][])null;
-            }
+        if (tileProperties != null && tileProperties.length <= 0)
+        {
+            tileProperties = (ConnectedProperties[][])null;
         }
     }
 
@@ -1949,6 +1978,11 @@ public class ConnectedTextures
 
     public static void updateIcons(TextureMap p_updateIcons_0_, IResourcePack p_updateIcons_1_)
     {
+        if (p_updateIcons_1_ == null)
+        {
+            return;
+        }
+
         String[] astring = ResUtils.collectFiles(p_updateIcons_1_, "mcpatcher/ctm/", ".properties", getDefaultCtmPaths());
         Arrays.sort((Object[])astring);
         List list = makePropertyList(tileProperties);
@@ -1971,7 +2005,16 @@ public class ConnectedTextures
                 else
                 {
                     Properties properties = new Properties();
-                    properties.load(inputstream);
+
+                    try
+                    {
+                        properties.load(inputstream);
+                    }
+                    finally
+                    {
+                        inputstream.close();
+                    }
+
                     ConnectedProperties connectedproperties = new ConnectedProperties(properties, s);
 
                     if (connectedproperties.isValid(s))
@@ -2153,23 +2196,29 @@ public class ConnectedTextures
         list.add(p_addToList_0_);
     }
 
+    private static boolean isDefaultTexture(ResourceLocation loc)
+    {
+        IResourcePack definingPack = Config.getDefiningResourcePack(loc);
+        return definingPack == null || definingPack == Config.getDefaultResourcePack();
+    }
+
     private static String[] getDefaultCtmPaths()
     {
         List list = new ArrayList();
         String s = "mcpatcher/ctm/default/";
 
-        if (Config.isFromDefaultResourcePack(new ResourceLocation("textures/blocks/glass.png")))
+        if (isDefaultTexture(new ResourceLocation("textures/blocks/glass.png")))
         {
             list.add(s + "glass.properties");
             list.add(s + "glasspane.properties");
         }
 
-        if (Config.isFromDefaultResourcePack(new ResourceLocation("textures/blocks/bookshelf.png")))
+        if (isDefaultTexture(new ResourceLocation("textures/blocks/bookshelf.png")))
         {
             list.add(s + "bookshelf.properties");
         }
 
-        if (Config.isFromDefaultResourcePack(new ResourceLocation("textures/blocks/sandstone_normal.png")))
+        if (isDefaultTexture(new ResourceLocation("textures/blocks/sandstone_normal.png")))
         {
             list.add(s + "sandstone.properties");
         }
@@ -2180,7 +2229,7 @@ public class ConnectedTextures
         {
             String s1 = astring[i];
 
-            if (Config.isFromDefaultResourcePack(new ResourceLocation("textures/blocks/glass_" + s1 + ".png")))
+            if (isDefaultTexture(new ResourceLocation("textures/blocks/glass_" + s1 + ".png")))
             {
                 list.add(s + i + "_glass_" + s1 + "/glass_" + s1 + ".properties");
                 list.add(s + i + "_glass_" + s1 + "/glass_pane_" + s1 + ".properties");

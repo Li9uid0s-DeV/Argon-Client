@@ -5,6 +5,9 @@ import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 
 public class BlockGlass extends BlockBreakable
 {
@@ -35,5 +38,19 @@ public class BlockGlass extends BlockBreakable
     protected boolean canSilkHarvest()
     {
         return true;
+    }
+
+    @Deprecated
+    public boolean shouldSideBeRendered(IBlockState blockState, IBlockAccess blockAccess, BlockPos pos, EnumFacing side)
+    {
+        IBlockState iblockstate = blockAccess.getBlockState(pos.offset(side));
+        Block block = iblockstate.getBlock();
+
+        if (block == this)
+        {
+            return false;
+        }
+
+        return super.shouldSideBeRendered(blockState, blockAccess, pos, side);
     }
 }

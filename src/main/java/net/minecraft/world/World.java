@@ -16,6 +16,7 @@ import net.minecraft.advancements.FunctionManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.BlockObserver;
+import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.crash.CrashReport;
@@ -3664,5 +3665,95 @@ public abstract class World implements IBlockAccess
     public BlockPos findNearestStructure(String p_190528_1_, BlockPos p_190528_2_, boolean p_190528_3_)
     {
         return null;
+    }
+
+    public void scanMinimapColors(int centerX, int centerY, int centerZ, int radius, int[] outPixels, BlockPos.MutableBlockPos mutablePos)
+    {
+        int diameter = radius * 2;
+
+        if (outPixels == null || outPixels.length < diameter * diameter)
+        {
+            return;
+        }
+
+        for (int dx = -radius; dx < radius; ++dx)
+        {
+            int worldX = centerX + dx;
+            int chunkX = worldX >> 4;
+            int localX = worldX & 15;
+            int mx = dx + radius;
+            int prevY = -1;
+            int lastChunkZ = Integer.MIN_VALUE;
+            Chunk currentChunk = null;
+
+            for (int dz = -radius; dz < radius; ++dz)
+            {
+                int worldZ = centerZ + dz;
+                int chunkZ = worldZ >> 4;
+                int mz = dz + radius;
+
+                if (chunkZ != lastChunkZ)
+                {
+                    lastChunkZ = chunkZ;
+                    currentChunk = this.isChunkLoaded(chunkX, chunkZ, true) ? this.getChunkFromChunkCoords(chunkX, chunkZ) : null;
+                }
+
+                if (currentChunk == null || currentChunk.isEmpty())
+                {
+                    outPixels[mz * diameter + mx] = 0xFF10141C;
+                    prevY = -1;
+                    continue;
+                }
+
+                int info = currentChunk.getMinimapSurfaceInfo(localX, worldZ & 15, centerY, mutablePos);
+
+                if (info == 0)
+                {
+                    outPixels[mz * diameter + mx] = 0xFF10141C;
+                    prevY = -1;
+                    continue;
+                }
+
+                int y = (info >>> 16) & 255;
+                int liquidDepth = (info >>> 8) & 255;
+                int colorIdx = info & 63;
+                MapColor mapColor = MapColor.COLORS[colorIdx];
+
+                if (mapColor == null || mapColor == MapColor.AIR)
+                {
+                    outPixels[mz * diameter + mx] = 0xFF10141C;
+                    prevY = y;
+                    continue;
+                }
+
+                int shadeIndex = 1;
+
+                if (mapColor == MapColor.WATER)
+                {
+                    if (liquidDepth <= 2)
+                    {
+                        shadeIndex = 2;
+                    }
+                    else if (liquidDepth >= 6)
+                    {
+                        shadeIndex = 0;
+                    }
+                }
+                else if (prevY >= 0)
+                {
+                    if (y > prevY)
+                    {
+                        shadeIndex = 2;
+                    }
+                    else if (y < prevY)
+                    {
+                        shadeIndex = 0;
+                    }
+                }
+
+                prevY = y;
+                outPixels[mz * diameter + mx] = mapColor.getMapColor(shadeIndex);
+            }
+        }
     }
 }
